@@ -58,9 +58,6 @@ class Fluke96270A():
     def command(self,string): # Send an arbitrary command (Testing Purposes)
         self.std.write(string)
 
-    def receive(self): # Broken. Test with reading *IDN? String
-        self.std.read()
-
     def set_outp_mode(self,mode): # Select head or microwave output
         clear()
         if mode.lower() == 'microwave':
