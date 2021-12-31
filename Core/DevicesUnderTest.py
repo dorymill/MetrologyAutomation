@@ -90,13 +90,4 @@ class HP3325B():
 # Testing Block
 
 if __name__ == '__main__': # Testing Block
-    rmq = pv.ResourceManager()
-    instruments = [dev for dev in rmq.list_resources()]
-
-    print('\nAvailable devices:\n')
-
-    for i,dev in enumerate(instruments):
-        print(f'{i} ) {dev}')
-
-    index = int(input('\nEnter the DUT index | '))
-    dut = HP3325B(instruments[index])
+    pass
