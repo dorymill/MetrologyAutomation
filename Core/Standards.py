@@ -739,10 +739,10 @@ class HP8482A():
         input('\nCalibration complete. Press any key to continue. . .')
         clear()
 
-    def measure_power(self, freq):      
+    def measure_power(self, freq, sensor='HP8482A'):      
         self.std.write('ABORt1')
         self.std.write('CONFigure1:POWer:AC DEF,4,(@1)')
-        self.std.write('SENS1:CORR:CSET1:SEL "HP8482A"')
+        self.std.write(f'SENS1:CORR:CSET1:SEL "{sensor}"')
         self.std.write('SENS1:CORR:CSET1:STAT ON')
         self.std.write('SENSe1:FREQuency {:.6f}'.format(freq))
         self.std.write('INIT1')
