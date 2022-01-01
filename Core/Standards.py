@@ -265,7 +265,7 @@ class Fluke55XXA():
     def silence(self): # Shhhhhhhhhhhh
             self.std.write('STBY')
 
-class HP8482A():
+class HP4418B():
     
     def __init__(self,resource_address):
         rm = pv.ResourceManager()
@@ -283,20 +283,20 @@ class HP8482A():
 
     def zero_sensor(self):
         clear()
-        input('\nEnsure power sensor is disconnected. Press any key to continue. . .')
+        input('\nEnsure power sensor is disconnected. Press enter to continue. . .')
         print('\nZeroing the power sensor. . .')
         self.std.write('CAL1:ZERO:AUTO ONCE')
         time.sleep(10)
-        input('\nSensor zeroed. Press any key to continue. . .')
+        input('\nSensor zeroed. Press enter to continue. . .')
         clear()
     
     def cal_sensor(self):
         clear()
-        input('\nConnect power sensor to calibration output. Press any key to continue. . .')
+        input('\nConnect power sensor to calibration output. Press enter to continue. . .')
         print('\nCalibrating sensor. . .')
         self.std.write('CAL1:AUTO ONCE')
         time.sleep(10)
-        input('\nCalibration complete. Press any key to continue. . .')
+        input('\nCalibration complete. Press enter to continue. . .')
         clear()
 
     def measure_power(self, freq, model='HP8482A'):      
