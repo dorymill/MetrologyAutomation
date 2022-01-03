@@ -264,6 +264,7 @@ class Fluke55XXA():
 
     def silence(self): # Shhhhhhhhhhhh
             self.std.write('STBY')
+            time.sleep(0.5)
 
 class HP4418B():
     
@@ -337,6 +338,9 @@ class Keithley2015():
     def command(self,string): # Send an arbitrary command (Testing Purposes)
         self.std.write(string)
 
+    def query(self,string):
+        return self.std.query(string)
+
     def stealth(self,status='OFF'): # Disable the display
         self.std.write(f'DISP:ENAB {status}')
 
@@ -358,9 +362,10 @@ class Keithley2015():
 
         time.sleep(2)
 
-    def set_to_acv(self, range='AUTO',speed='MED'): # Set instrument to ACV       
+    def set_to_acv(self, range='AUTO',speed='MED', detector='RMS'): # Set instrument to ACV       
         self.std.write('SENS:FUNC "VOLT:AC"')
-        #self.std.write('INIT:CONT ON')
+        # Avaliable modes | RMS, AVERage, LFRMs, NPeak, PPeak
+        self.std.write(f'SENS:VOLT:AC:DET:FUNC {detector}')
 
         if range == 'AUTO':
             self.std.write('SENS:VOLT:AC:RANG:AUTO 1')
@@ -400,11 +405,45 @@ class Keithley2015():
         # Figure out how to change the rate on ACImode
         time.sleep(2)
 
+    def set_to_dci(self, range='AUTO', speed='MED'): # Set instrument to DCI
+        self.std.write('SENS:FUNC "CURR:DC"')
+
+        if range == 'AUTO':
+            self.std.write('SENS:CURR:DC:RANG:AUTO 1')
+        else:
+            self.std.write(f'SENS:CURR:DC:RANG {range}')
+        time.sleep(2)
+
+    def set_to_4_wire_rtd(self, type='PT385'):
+        self.std.write('SENS:FUNC "TEMP"')
+        self.std.write('SENS:TEMP:TRAN FRTD')
+        self.std.write(f'SENS:TEMP:RTD:TYPE {type}')
+        time.sleep(2)
+
+    def set_to_2_wire_rtd(self, type='PT385'):
+        self.std.write('SENS:FUNC "TEMP"')
+        self.std.write('SENS:TEMP:TRAN RTD')
+        self.std.write(f'SENS:TEMP:RTD:TYPE {type}')
+        time.sleep(2)
+
+    def set_to_thermocouple(self,type='J'):
+        self.std.write('SENS:FUNC "TEMP"')
+        self.std.write('SENS:TEMP:TRAN TC')
+        self.std.write(f'SENS:TEMP:TC:TYPE {type}')
+        time.sleep(2)
+
+    def set_to_freq(self):
+        self.std.write('SENS:FUNC "FREQ"')
+        time.sleep(2)
+
     def read(self): # Read instrument current value
         self.std.write('INIT:CONT ON')
         self.std.write('FETC?')
         time.sleep(1)
         return float(self.std.read())
+
+    def set_ac_averaging(self, naverages=10): # Set number of readings for the moving average filter
+        self.std.write(f'SENS:VOLT:AVER:COUN {naverages}')
 
 class Keithley2001(Keithley2015):
 
@@ -414,5 +453,14 @@ class Keithley2001(Keithley2015):
         self.std.write('FETC?')
         time.sleep(1)
         result_string = self.std.read()
-        msmnt = re.search('[+-]?\d+.\d+E[+-]?\d+', result_string).group(0) # Regex search to grab +/-XXx.XXXX+/-EXX
+        msmnt = re.search('[+-]?\d+.?[.\d\d]?[Ee][+-]?\d+', result_string).group(0) # Regex search to grab +/-XXx.XXXX+/-EXX
+        return float(msmnt)
+
+    def slow_read(self):
+        self.std.write('INIT:CONT ON')
+        time.sleep(1)
+        self.std.write('FETC?')
+        time.sleep(20)
+        result_string = self.std.read()
+        msmnt = re.search('[+-]?\d+.?[.\d\d]?[Ee][+-]?\d+', result_string).group(0) # Regex search to grab +/-XXx.XXXX+/-EXX
         return float(msmnt)
