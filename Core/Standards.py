@@ -1,3 +1,4 @@
+from collections import abc
 import pyvisa as pv
 import numpy as np
 import time, math, os, re
@@ -362,10 +363,8 @@ class Keithley2015():
 
         time.sleep(2)
 
-    def set_to_acv(self, range='AUTO',speed='MED', detector='RMS'): # Set instrument to ACV       
+    def set_to_acv(self, range='AUTO',speed='MED'): # Set instrument to ACV       
         self.std.write('SENS:FUNC "VOLT:AC"')
-        # Avaliable modes | RMS, AVERage, LFRMs, NPeak, PPeak
-        self.std.write(f'SENS:VOLT:AC:DET:FUNC {detector}')
 
         if range == 'AUTO':
             self.std.write('SENS:VOLT:AC:RANG:AUTO 1')
@@ -414,6 +413,51 @@ class Keithley2015():
             self.std.write(f'SENS:CURR:DC:RANG {range}')
         time.sleep(2)
 
+    def set_to_freq(self):
+        self.std.write('SENS:FUNC "FREQ"')
+        time.sleep(2)
+
+    def set_to_thermocouple(self,type='J'):
+        self.std.write('SENS:FUNC "TEMP"')
+        self.std.write(f'SENS:TEMP:TC:TYPE {type}')
+        time.sleep(2)
+
+    def read(self): # Read instrument current value
+        self.std.write('INIT:CONT ON')
+        reading = self.std.query('FETC?')
+        return float(reading)
+
+    def slow_read(self): # Read instrument current value
+        self.std.write('INIT:CONT ON')
+        time.sleep(20)
+        reading = self.std.query('FETC?')
+        time.sleep(20)
+        return float(reading)
+
+    def set_ac_averaging(self, naverages=10): # Set number of readings for the moving average filter
+        self.std.write(f'SENS:VOLT:AVER:COUN {naverages}')
+
+class Keithley2001(Keithley2015):
+
+    def set_to_acv(self, range='AUTO',speed='MED', detector='RMS'): # Set instrument to ACV       
+        self.std.write('SENS:FUNC "VOLT:AC"')
+        # Avaliable modes | RMS, AVERage, LFRMs, NPeak, PPeak
+        self.std.write(f'SENS:VOLT:AC:DET:FUNC {detector}')
+
+        if range == 'AUTO':
+            self.std.write('SENS:VOLT:AC:RANG:AUTO 1')
+        else:
+            self.std.write(f'SENS:VOLT:AC:RANG {range}')
+
+        # Figure out how to change the rate on ACV mode
+        time.sleep(2)
+
+    def set_to_thermocouple(self,type='J'):
+        self.std.write('SENS:FUNC "TEMP"')
+        self.std.write('SENS:TEMP:TRAN TC')
+        self.std.write(f'SENS:TEMP:TC:TYPE {type}')
+        time.sleep(2)
+
     def set_to_4_wire_rtd(self, type='PT385'):
         self.std.write('SENS:FUNC "TEMP"')
         self.std.write('SENS:TEMP:TRAN FRTD')
@@ -426,41 +470,43 @@ class Keithley2015():
         self.std.write(f'SENS:TEMP:RTD:TYPE {type}')
         time.sleep(2)
 
-    def set_to_thermocouple(self,type='J'):
-        self.std.write('SENS:FUNC "TEMP"')
-        self.std.write('SENS:TEMP:TRAN TC')
-        self.std.write(f'SENS:TEMP:TC:TYPE {type}')
-        time.sleep(2)
-
-    def set_to_freq(self):
-        self.std.write('SENS:FUNC "FREQ"')
-        time.sleep(2)
-
     def read(self): # Read instrument current value
         self.std.write('INIT:CONT ON')
-        self.std.write('FETC?')
-        time.sleep(1)
-        return float(self.std.read())
-
-    def set_ac_averaging(self, naverages=10): # Set number of readings for the moving average filter
-        self.std.write(f'SENS:VOLT:AVER:COUN {naverages}')
-
-class Keithley2001(Keithley2015):
-
-    def read(self): # Read instrument current value
-        self.std.write('INIT:CONT ON')
-        time.sleep(1)
-        self.std.write('FETC?')
-        time.sleep(1)
-        result_string = self.std.read()
+        result_string = self.std.query('FETC?')
         msmnt = re.search('\S+[Ee][+-]?\d\d', result_string).group(0) # Regex search to grab +/-XXx.XXXX+/-EXX
         return float(msmnt)
 
     def slow_read(self):
         self.std.write('INIT:CONT ON')
-        time.sleep(1)
-        self.std.write('FETC?')
         time.sleep(20)
-        result_string = self.std.read()
+        result_string = self.std.query('FETC?')
         msmnt = re.search('\S+[Ee][+-]?\d\d', result_string).group(0) # Regex search to grab +/-XXx.XXXX+/-EXX
         return float(msmnt)
+
+class HP3458A():
+
+    def __init__(self,resource_address):
+        rm = pv.ResourceManager()
+        self.std = rm.open_resource(resource_address)
+
+    def command(self,string):
+        self.std.write(string)
+
+    def auto_cal(self):
+        self.std.write('ACAL')
+
+    def nplc(self,nplc):
+        self.std.write(f'NPLC {nplc}')    
+
+    def set_to_dcv(self, range='AUTO', nplc=10):
+        self.std.write(f'DCV,{range} ; NPLC {nplc}')
+
+    def msg(self,string):
+        self.std.write(f'DISP MSG "{string}"')
+
+    def read(self): # Broken 
+        self.std.write('OFORMAT DINT')
+        self.std.write('TARM SGL,1')
+        time.sleep(5)
+        reading = self.std.read()
+        return reading
