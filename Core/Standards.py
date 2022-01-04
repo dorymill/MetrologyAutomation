@@ -453,7 +453,7 @@ class Keithley2001(Keithley2015):
         self.std.write('FETC?')
         time.sleep(1)
         result_string = self.std.read()
-        msmnt = re.search('[+-]?\d+.?[.\d\d]?[Ee][+-]?\d+', result_string).group(0) # Regex search to grab +/-XXx.XXXX+/-EXX
+        msmnt = re.search('\S+[Ee][+-]?\d\d', result_string).group(0) # Regex search to grab +/-XXx.XXXX+/-EXX
         return float(msmnt)
 
     def slow_read(self):
@@ -462,5 +462,5 @@ class Keithley2001(Keithley2015):
         self.std.write('FETC?')
         time.sleep(20)
         result_string = self.std.read()
-        msmnt = re.search('[+-]?\d+.?[.\d\d]?[Ee][+-]?\d+', result_string).group(0) # Regex search to grab +/-XXx.XXXX+/-EXX
+        msmnt = re.search('\S+[Ee][+-]?\d\d', result_string).group(0) # Regex search to grab +/-XXx.XXXX+/-EXX
         return float(msmnt)
