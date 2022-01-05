@@ -473,25 +473,31 @@ class HP3458A(Init):
         self.std.write(f'NPLC {nplc}')    
 
     def set_to_dcv(self, range='AUTO', nplc=100): # Set to DCV
-        self.std.write(f'DCV,{range} ; NPLC {nplc}; TARM AUTO')
+        self.std.write(f'DCV,{range} ; NPLC {nplc}; TRIG AUTO')
 
     def set_to_acv(self, range='AUTO', nplc=100): # Set to ACV
-        self.std.write(f'ACV,{range} ; NPLC {nplc}; TARM AUTO')
+        self.std.write(f'ACV,{range} ; NPLC {nplc}; TRIG AUTO')
 
     def set_to_2wire_res(self, range='AUTO', nplc=100): # Set to 2-Wire Res
-        self.std.write(f'OHM,{range} ; NPLC {nplc}; TARM AUTO')
+        self.std.write(f'OHM,{range} ; NPLC {nplc}; TRIG AUTO')
 
     def set_to_4wire_res(self, range='AUTO', nplc=100): # Set to 4-Wire Res
-        self.std.write(f'OHMF,{range} ; NPLC {nplc}; TARM AUTO')
+        self.std.write(f'OHMF,{range} ; NPLC {nplc}; TRIG AUTO')
 
     def set_to_dci(self, range='AUTO', nplc=100): # Set to DCI
-        self.std.write(f'DCI,{range} ; NPLC {nplc}; TARM AUTO')
+        self.std.write(f'DCI,{range} ; NPLC {nplc}; TRIG AUTO')
 
     def set_to_aci(self, range='AUTO', nplc=100): # Set to ACI
-        self.std.write(f'ACI,{range} ; NPLC {nplc}; TARM AUTO')
+        self.std.write(f'ACI,{range} ; NPLC {nplc}; TRIG AUTO')
+
+    def set_trig_delay(self,delay):
+        self.std.write(f'DELAY {delay}')
 
     def msg(self,string): # Send a message to the display
         self.std.write(f'DISP MSG "{string}"')
+
+    def get_display(self): # Get current display
+        return self.std.query('DSP?')
 
     def read(self): # Read Current Value
         return float(self.std.query('SPOLL?'))               
