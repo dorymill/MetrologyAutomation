@@ -9,7 +9,20 @@ import pandas as pd
 from pyvisa.resources import resource
 from Core.Standards import *
 
-class AgilentN5181A():
+class Init():
+
+    def __init__(self,resource_address):
+        rm = pv.ResourceManager()
+        self.dut = rm.open_resource(resource_address)
+        self.dut.timeout = 60e3
+ 
+    def command(self,string): # Send and arbitrary command
+        self.dut.write(string)
+
+    def query(self,string): # Send an arbitrary query
+        return self.dut.query(string)
+
+class AgilentN5181A(Init):
 
     def __init__(self,resource_address):
         rm = pv.ResourceManager()
@@ -41,37 +54,33 @@ class AgilentN5181A():
     def silence(self):
         self.dut.write('OUTP:STAT 0')
 
-class HP3325B():
-
-    def __init__(self,resource_address):
-        rm = pv.ResourceManager()
-        self.dut = rm.open_resource(resource_address)
+class HP3325B(Init):
 
     def command(self,command):
         self.dut.write(command)
 
     def sine_output(self, level, frequency, unit='VO'): # VO is pp. V is rms
-        self.dut.write('FU1')
+        self.dut.write('FU 1')
         self.dut.write(f'FR{frequency:.1f}HZ')
         self.dut.write(f'AM{level}{unit}')
 
     def square_output(self, level, frequency, unit='VO'):
-        self.dut.write('FU2')
+        self.dut.write('FU 2')
         self.dut.write(f'FR{frequency:.1f}HZ')
         self.dut.write(f'AM{level}{unit}')
 
     def triangle_output(self, level, frequency, unit='VO'):
-        self.dut.write('FU3')
+        self.dut.write('FU 3')
         self.dut.write(f'FR{frequency:.1f}HZ')
         self.dut.write(f'AM{level}{unit}')
 
     def pos_ramp_output(self,level,frequency,unit='VO'):
-        self.dut.write('FU4')
+        self.dut.write('FU 4')
         self.dut.write(f'FR{frequency:.1f}HZ')
         self.dut.write(f'AM{level}{unit}')
 
     def neg_ramp_output(self,level,frequency,unit='VO'):
-        self.dut.write('FU5')
+        self.dut.write('FU 5')
         self.dut.write(f'FR{frequency:.1f}HZ')
         self.dut.write(f'AM{level}{unit}')
 
@@ -79,7 +88,7 @@ class HP3325B():
         self.dut.write(f'OF{offset}V')
 
     def dc_offset_only(self,offset):
-        self.dut.write('FU0')
+        self.dut.write('FU 0')
         self.dut.write(f'OF{offset}V')
         self.dut.write(f'OF{offset}V')
 
@@ -87,7 +96,10 @@ class HP3325B():
         self.dut.write('*RST')
         self.dut.write('*RST')
 
-# Testing Block
+class HP3314A(Init):
 
-if __name__ == '__main__': # Testing Block
-    pass
+    def triangle_output(self, level, frequency, unit='VO'):
+        self.dut.write('FU 3')
+        self.dut.write(f'FR{frequency:.1f}HZ')
+        self.dut.write(f'AP{level}{unit}')
+
