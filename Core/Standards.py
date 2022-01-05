@@ -50,12 +50,14 @@ def clear(): # Clear terminal
 
 # Standard Classes
 
-class Fluke96270A():
-    
+class Init():
+
     def __init__(self,resource_address):
         rm = pv.ResourceManager()
         self.std = rm.open_resource(resource_address)
 
+class Fluke96270A(Init):
+    
     def command(self,string): # Send an arbitrary command (Testing Purposes)
         self.std.write(string)
 
@@ -122,13 +124,13 @@ class Fluke96270A():
     def silence(self): # Shhhhhhhhhhh
         self.std.write('OUTP OFF')
 
-class Fluke9640A(Fluke96270A):
+class Fluke9640A(Fluke96270A,Init):
     
     def set_outp_mode(self, *args, **kwargs): # Overwriting unused method
         # This unit only outputs via leveling head
         pass
 
-class HP33120A():
+class HP33120A(Init):
 
     def __init__(self,resource_address):
         rm = pv.ResourceManager()
@@ -155,11 +157,7 @@ class HP33120A():
     def dc_offset(self,offset_voltage): # DC Offset
         self.std.write(f'VOLT:OFFS {offset_voltage}')
 
-class Fluke55XXA():
-
-    def __init__(self,resource_address):
-        rm = pv.ResourceManager()
-        self.std = rm.open_resource(resource_address)
+class Fluke55XXA(Init):
 
     # Basic Instrument Command Block
 
@@ -267,11 +265,7 @@ class Fluke55XXA():
             self.std.write('STBY')
             time.sleep(0.5)
 
-class HP4418B():
-    
-    def __init__(self,resource_address):
-        rm = pv.ResourceManager()
-        self.std = rm.open_resource(resource_address)
+class HP4418B(Init):
 
     def write(self,command):
         self.std.write(command)
@@ -330,11 +324,7 @@ class HP4418B():
         corr_factors = [float(a) for a in df['Factor']]   
         return interp1d(corr_freqs, corr_factors, kind='cubic')
 
-class Keithley2015():
-
-    def __init__(self,resource_address):
-        rm =pv.ResourceManager()
-        self.std = rm.open_resource(resource_address)
+class Keithley2015(Init):
 
     def command(self,string): # Send an arbitrary command (Testing Purposes)
         self.std.write(string)
@@ -422,6 +412,12 @@ class Keithley2015():
         self.std.write(f'SENS:TEMP:TC:TYPE {type}')
         time.sleep(2)
 
+    def set_ac_averaging(self, naverages=10): # Set number of readings for the moving average filter
+        self.std.write(f'SENS:VOLT:AVER:COUN {naverages}')
+
+    def set_delay(self,delay_time):
+        self.std.write(f'TRIG:DEL {delay_time}')
+
     def read(self): # Read instrument current value
         self.std.write('INIT:CONT ON')
         reading = self.std.query('FETC?')
@@ -434,10 +430,7 @@ class Keithley2015():
         time.sleep(20)
         return float(reading)
 
-    def set_ac_averaging(self, naverages=10): # Set number of readings for the moving average filter
-        self.std.write(f'SENS:VOLT:AVER:COUN {naverages}')
-
-class Keithley2001(Keithley2015):
+class Keithley2001(Keithley2015,Init):
 
     def set_to_acv(self, range='AUTO',speed='MED', detector='RMS'): # Set instrument to ACV       
         self.std.write('SENS:FUNC "VOLT:AC"')
@@ -483,30 +476,58 @@ class Keithley2001(Keithley2015):
         msmnt = re.search('\S+[Ee][+-]?\d\d', result_string).group(0) # Regex search to grab +/-XXx.XXXX+/-EXX
         return float(msmnt)
 
-class HP3458A():
+class HP3458A(Init):
 
-    def __init__(self,resource_address):
+    def __init__(self,resource_address): 
         rm = pv.ResourceManager()
         self.std = rm.open_resource(resource_address)
+        self.std.write('END ALWAYS')
+        self.std.write('OFORMAT ASCII')
 
     def command(self,string):
         self.std.write(string)
 
-    def auto_cal(self):
+    def query(self,string):
+        return self.std.query(string)
+
+    def auto_cal(self): # Auto Calibration
         self.std.write('ACAL')
 
-    def nplc(self,nplc):
+    def nplc(self,nplc): # Set number of power line cycles per reading
         self.std.write(f'NPLC {nplc}')    
 
-    def set_to_dcv(self, range='AUTO', nplc=10):
-        self.std.write(f'DCV,{range} ; NPLC {nplc}')
+    def set_to_dcv(self, range='AUTO', nplc=10): # Set to DCV
+        self.std.write(f'DCV,{range} ; NPLC {nplc}; TARM AUTO; TRIG AUTO')
 
-    def msg(self,string):
+    def set_to_acv(self, range='AUTO', nplc=10): # Set to ACV
+        self.std.write(f'ACV,{range} ; NPLC {nplc}; TARM AUTO; TRIG AUTO')
+
+    def msg(self,string): # Send a message to the display
         self.std.write(f'DISP MSG "{string}"')
 
-    def read(self): # Broken 
-        self.std.write('OFORMAT DINT')
-        self.std.write('TARM SGL,1')
-        time.sleep(5)
-        reading = self.std.read()
-        return reading
+    def read(self,nplc=10): # Read Current Value
+        if nplc <= 10:
+            time.sleep(0.5)
+            reading = self.std.query('SPOLL?')
+            self.std.write('TARM AUTO')
+            return float(reading)
+        elif nplc <= 100:
+            time.sleep(2)
+            reading = self.std.query('SPOLL?')
+            self.std.write('TARM AUTO')
+            return float(reading)
+        elif nplc <= 200:
+            time.sleep(6)
+            reading = self.std.query('SPOLL?')
+            self.std.write('TARM AUTO')
+            return float(reading)
+        elif nplc <= 500:
+            time.sleep(20)
+            reading = self.std.query('SPOLL?')
+            self.std.write('TARM AUTO')
+            return float(reading)
+        else:
+            time.sleep(60)
+            reading = self.std.query('SPOLL?')
+            self.std.write('TARM AUTO')
+            return float(reading)               
