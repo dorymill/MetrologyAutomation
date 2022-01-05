@@ -49,6 +49,7 @@ class Init():
     def __init__(self,resource_address): # Initialize instrument through PyVisa
         rm = pv.ResourceManager()
         self.std = rm.open_resource(resource_address)
+        self.std.timeout = 60e3
 
     def command(self,string): # Send and arbitrary command
         self.std.write(string)
@@ -463,6 +464,7 @@ class HP3458A(Init):
         self.std = rm.open_resource(resource_address)
         self.std.write('END ALWAYS')
         self.std.write('OFORMAT ASCII')
+        self.std.timeout = 60e3
 
     def auto_cal(self): # Auto Calibration
         self.std.write('ACAL')
@@ -491,29 +493,5 @@ class HP3458A(Init):
     def msg(self,string): # Send a message to the display
         self.std.write(f'DISP MSG "{string}"')
 
-    def read(self,nplc=100): # Read Current Value
-        if nplc <= 10:
-            time.sleep(0.5)
-            reading = self.std.query('SPOLL?')
-            self.std.write('TARM AUTO')
-            return float(reading)
-        elif nplc <= 100:
-            time.sleep(2)
-            reading = self.std.query('SPOLL?')
-            self.std.write('TARM AUTO')
-            return float(reading)
-        elif nplc <= 200:
-            time.sleep(6)
-            reading = self.std.query('SPOLL?')
-            self.std.write('TARM AUTO')
-            return float(reading)
-        elif nplc <= 500:
-            time.sleep(20)
-            reading = self.std.query('SPOLL?')
-            self.std.write('TARM AUTO')
-            return float(reading)
-        else:
-            time.sleep(60)
-            reading = self.std.query('SPOLL?')
-            self.std.write('TARM AUTO')
-            return float(reading)               
+    def read(self): # Read Current Value
+        return float(self.std.query('SPOLL?'))               
