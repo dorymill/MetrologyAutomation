@@ -270,14 +270,14 @@ class HP4418B(Init):
     def write(self,command):
         self.std.write(command)
 
-    def clear_errors(self):
+    def clear_errors(self): # Clear error register
         self.std.write('*CLS')
 
-    def set_unit(self, unit='DBM'):
+    def set_unit(self, unit='DBM'): # Set output unit
         # Options | W or DBM
         self.std.write(f'UNIT1:POW {unit}')
 
-    def zero_sensor(self):
+    def zero_sensor(self): # Zero power sensor
         clear()
         input('\nEnsure power sensor is disconnected. Press enter to continue. . .')
         print('\nZeroing the power sensor. . .')
@@ -286,7 +286,7 @@ class HP4418B(Init):
         input('\nSensor zeroed. Press enter to continue. . .')
         clear()
     
-    def cal_sensor(self):
+    def cal_sensor(self): # Calibrate Power Sensor
         clear()
         input('\nConnect power sensor to calibration output. Press enter to continue. . .')
         print('\nCalibrating sensor. . .')
@@ -295,7 +295,7 @@ class HP4418B(Init):
         input('\nCalibration complete. Press enter to continue. . .')
         clear()
 
-    def measure_power(self, freq, model='HP8482A'):      
+    def measure_power(self, freq, model='HP8482A'): # Measure power w/internal corrections
         self.std.write('ABORt1')
         self.std.write('CONFigure1:POWer:AC DEF,4,(@1)')
         self.std.write(f'SENS1:CORR:CSET1:SEL "{model}"')
@@ -307,7 +307,7 @@ class HP4418B(Init):
         time.sleep(5)
         return float(self.std.read())
 
-    def measure_power_w_corrections(self,correction):
+    def measure_power_w_corrections(self,correction): # Measure power with given corrections
         self.std.write('ABORt1')
         self.std.write('CONFigure1:POWer:AC DEF,4,(@1)')
         self.std.write(f'CAL1:RCF {correction:.2f}PCT')
@@ -317,7 +317,7 @@ class HP4418B(Init):
         time.sleep(3)
         return float(self.std.read())
 
-    def load_corrections(self,inlist):
+    def load_corrections(self,inlist): # Load correction factors
         from scipy.interpolate import interp1d
         df = pd.read_csv(inlist)
         corr_freqs = [float(a)*1e6 for a in df['Frequency']]
@@ -403,11 +403,11 @@ class Keithley2015(Init):
             self.std.write(f'SENS:CURR:DC:RANG {range}')
         time.sleep(2)
 
-    def set_to_freq(self):
+    def set_to_freq(self): # Set instrument to Frequency
         self.std.write('SENS:FUNC "FREQ"')
         time.sleep(2)
 
-    def set_to_thermocouple(self,type='J'):
+    def set_to_thermocouple(self,type='J'): # Set instrument to Thermocouple
         self.std.write('SENS:FUNC "TEMP"')
         self.std.write(f'SENS:TEMP:TC:TYPE {type}')
         time.sleep(2)
@@ -415,7 +415,7 @@ class Keithley2015(Init):
     def set_ac_averaging(self, naverages=10): # Set number of readings for the moving average filter
         self.std.write(f'SENS:VOLT:AVER:COUN {naverages}')
 
-    def set_delay(self,delay_time):
+    def set_delay(self,delay_time): # Set Trigger delay
         self.std.write(f'TRIG:DEL {delay_time}')
 
     def read(self): # Read instrument current value
@@ -445,19 +445,19 @@ class Keithley2001(Keithley2015,Init):
         # Figure out how to change the rate on ACV mode
         time.sleep(2)
 
-    def set_to_thermocouple(self,type='J'):
+    def set_to_thermocouple(self,type='J'): # Set instrument to Thermocouple
         self.std.write('SENS:FUNC "TEMP"')
         self.std.write('SENS:TEMP:TRAN TC')
         self.std.write(f'SENS:TEMP:TC:TYPE {type}')
         time.sleep(2)
 
-    def set_to_4_wire_rtd(self, type='PT385'):
+    def set_to_4wire_rtd(self, type='PT385'): # Set instrument to 4-Wire RTD
         self.std.write('SENS:FUNC "TEMP"')
         self.std.write('SENS:TEMP:TRAN FRTD')
         self.std.write(f'SENS:TEMP:RTD:TYPE {type}')
         time.sleep(2)
 
-    def set_to_2_wire_rtd(self, type='PT385'):
+    def set_to_2wire_rtd(self, type='PT385'): # Set instrument to 3-Wire RTD
         self.std.write('SENS:FUNC "TEMP"')
         self.std.write('SENS:TEMP:TRAN RTD')
         self.std.write(f'SENS:TEMP:RTD:TYPE {type}')
@@ -469,7 +469,7 @@ class Keithley2001(Keithley2015,Init):
         msmnt = re.search('\S+[Ee][+-]?\d\d', result_string).group(0) # Regex search to grab +/-XXx.XXXX+/-EXX
         return float(msmnt)
 
-    def slow_read(self):
+    def slow_read(self): # Read slower filter results
         self.std.write('INIT:CONT ON')
         time.sleep(20)
         result_string = self.std.query('FETC?')
@@ -478,7 +478,7 @@ class Keithley2001(Keithley2015,Init):
 
 class HP3458A(Init):
 
-    def __init__(self,resource_address): 
+    def __init__(self,resource_address): # Allow GPIB reading in ASCII format
         rm = pv.ResourceManager()
         self.std = rm.open_resource(resource_address)
         self.std.write('END ALWAYS')
