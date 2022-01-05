@@ -1,14 +1,8 @@
-from collections import abc
 import pyvisa as pv
-import numpy as np
-import time, math, os, re
-import matplotlib.pyplot as plt
+import time, re
 import pandas as pd
 
-# Utilize the builtin help method and attribute definitions to build in an interactive API loop
-# and have it called when this script is ran directly
-
-# Standard Functions
+# Common Functions
 
 def initialize_std(name='standard'): # Initialize a standard instrument
     clear()
@@ -48,18 +42,21 @@ def clear(): # Clear terminal
     import os
     os.system('cls' if os.name == 'nt' else 'clear')
 
-# Standard Classes
+# Instrument Classes
 
 class Init():
 
-    def __init__(self,resource_address):
+    def __init__(self,resource_address): # Initialize instrument through PyVisa
         rm = pv.ResourceManager()
         self.std = rm.open_resource(resource_address)
 
-class Fluke96270A(Init):
-    
-    def command(self,string): # Send an arbitrary command (Testing Purposes)
+    def command(self,string): # Send and arbitrary command
         self.std.write(string)
+
+    def query(self,string): # Send an arbitrary query
+        return self.std.query(string)
+
+class Fluke96270A(Init):
 
     def set_outp_mode(self,mode): # Select head or microwave output
         clear()
@@ -158,14 +155,6 @@ class HP33120A(Init):
         self.std.write(f'VOLT:OFFS {offset_voltage}')
 
 class Fluke55XXA(Init):
-
-    # Basic Instrument Command Block
-
-    def command(self,string): # Write an arbitrary command (testing purposes)
-        self.std.write(string)
-
-    def receive(self): # Read a output buffer. Broken. Test with pulling the *IDN? response
-        self.std.read()
 
     def wave_shape(self,shape='SINE'): # Change AC Waveform Shape
         # Options | SINE, TRI, SQUARE, TRUNCS
@@ -267,9 +256,6 @@ class Fluke55XXA(Init):
 
 class HP4418B(Init):
 
-    def write(self,command):
-        self.std.write(command)
-
     def clear_errors(self): # Clear error register
         self.std.write('*CLS')
 
@@ -325,12 +311,6 @@ class HP4418B(Init):
         return interp1d(corr_freqs, corr_factors, kind='cubic')
 
 class Keithley2015(Init):
-
-    def command(self,string): # Send an arbitrary command (Testing Purposes)
-        self.std.write(string)
-
-    def query(self,string):
-        return self.std.query(string)
 
     def stealth(self,status='OFF'): # Disable the display
         self.std.write(f'DISP:ENAB {status}')
@@ -484,28 +464,34 @@ class HP3458A(Init):
         self.std.write('END ALWAYS')
         self.std.write('OFORMAT ASCII')
 
-    def command(self,string):
-        self.std.write(string)
-
-    def query(self,string):
-        return self.std.query(string)
-
     def auto_cal(self): # Auto Calibration
         self.std.write('ACAL')
 
     def nplc(self,nplc): # Set number of power line cycles per reading
         self.std.write(f'NPLC {nplc}')    
 
-    def set_to_dcv(self, range='AUTO', nplc=10): # Set to DCV
-        self.std.write(f'DCV,{range} ; NPLC {nplc}; TARM AUTO; TRIG AUTO')
+    def set_to_dcv(self, range='AUTO', nplc=100): # Set to DCV
+        self.std.write(f'DCV,{range} ; NPLC {nplc}; TARM AUTO')
 
-    def set_to_acv(self, range='AUTO', nplc=10): # Set to ACV
-        self.std.write(f'ACV,{range} ; NPLC {nplc}; TARM AUTO; TRIG AUTO')
+    def set_to_acv(self, range='AUTO', nplc=100): # Set to ACV
+        self.std.write(f'ACV,{range} ; NPLC {nplc}; TARM AUTO')
+
+    def set_to_2wire_res(self, range='AUTO', nplc=100): # Set to 2-Wire Res
+        self.std.write(f'OHM,{range} ; NPLC {nplc}; TARM AUTO')
+
+    def set_to_4wire_res(self, range='AUTO', nplc=100): # Set to 4-Wire Res
+        self.std.write(f'OHMF,{range} ; NPLC {nplc}; TARM AUTO')
+
+    def set_to_dci(self, range='AUTO', nplc=100): # Set to DCI
+        self.std.write(f'DCI,{range} ; NPLC {nplc}; TARM AUTO')
+
+    def set_to_aci(self, range='AUTO', nplc=100): # Set to ACI
+        self.std.write(f'ACI,{range} ; NPLC {nplc}; TARM AUTO')
 
     def msg(self,string): # Send a message to the display
         self.std.write(f'DISP MSG "{string}"')
 
-    def read(self,nplc=10): # Read Current Value
+    def read(self,nplc=100): # Read Current Value
         if nplc <= 10:
             time.sleep(0.5)
             reading = self.std.query('SPOLL?')
