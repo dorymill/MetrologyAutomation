@@ -507,6 +507,10 @@ class RSFSP(Init): # Spectrum Analyzer
         rm = pv.ResourceManager()
         self.std = rm.open_resource(resource_address)
         self.std.timeout = 300e3
+        self.std.write('*RST')
+
+    def clear_write_mode(self): # Set trace mode to clear/write
+        self.std.write('DISP:WIND:TRAC:MODE WRIT')
 
     def input_attenuation(self,dB='AUTO'): # Set the input attentuation
         if dB == 'Auto':
@@ -514,8 +518,11 @@ class RSFSP(Init): # Spectrum Analyzer
         else:
             self.std.write(f'INP:ATT {dB}dB')
 
-    def set_averaging(self,n): # Set trace averaging
-        self.std.write(f'AVER:COUNT {n}; AVER:STAT ON; INIT; *WAI')
+    def set_averaging(self,n): # Set trace mode to average
+        self.std.write(f'AVER:COUNT {n}; DISP:WIND:TRAC:MODE AVER; AVER:STAT ON; INIT; *WAI')
+
+    def single_sweep(self):
+        self.std.write('INIT:CONT OFF')
 
     def center(self,frequency): # Set center frequency
         self.std.write(f'FREQ:CENT {frequency}')
@@ -559,4 +566,3 @@ class RSFSP(Init): # Spectrum Analyzer
         self.std.write('CALC:MARK:FUNC:HARM:STAT ON')
         self.write('INIT:CONT ON; *WAI')
         return self.std.query('CALC:MARK:FUNC:HARM:DIST?')
-        
