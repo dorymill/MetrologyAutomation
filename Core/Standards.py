@@ -44,7 +44,7 @@ def clear(): # Clear terminal
 
 # Instrument Classes
 
-class Init():
+class Init(): # Initializer Parent Class
 
     def __init__(self,resource_address): # Initialize instrument through PyVisa
         rm = pv.ResourceManager()
@@ -57,7 +57,7 @@ class Init():
     def query(self,string): # Send an arbitrary query
         return self.std.query(string)
 
-class Fluke96270A(Init):
+class Fluke96270A(Init): # RF Reference Source
 
     def set_outp_mode(self,mode): # Select head or microwave output
         clear()
@@ -122,13 +122,13 @@ class Fluke96270A(Init):
     def silence(self): # Shhhhhhhhhhh
         self.std.write('OUTP OFF')
 
-class Fluke9640A(Fluke96270A,Init):
+class Fluke9640A(Fluke96270A,Init): # RF Reference Source
     
     def set_outp_mode(self, *args, **kwargs): # Overwriting unused method
         # This unit only outputs via leveling head
         pass
 
-class HP33120A(Init):
+class HP33120A(Init): # Signal Generator
 
     def __init__(self,resource_address):
         rm = pv.ResourceManager()
@@ -155,7 +155,7 @@ class HP33120A(Init):
     def dc_offset(self,offset_voltage): # DC Offset
         self.std.write(f'VOLT:OFFS {offset_voltage}')
 
-class Fluke55XXA(Init):
+class Fluke55XXA(Init): # Multifunction Calibrator
 
     def wave_shape(self,shape='SINE'): # Change AC Waveform Shape
         # Options | SINE, TRI, SQUARE, TRUNCS
@@ -255,7 +255,7 @@ class Fluke55XXA(Init):
             self.std.write('STBY')
             time.sleep(0.5)
 
-class HP4418B(Init):
+class HP4418B(Init): # RF Power Meter
 
     def clear_errors(self): # Clear error register
         self.std.write('*CLS')
@@ -311,7 +311,7 @@ class HP4418B(Init):
         corr_factors = [float(a) for a in df['Factor']]   
         return interp1d(corr_freqs, corr_factors, kind='cubic')
 
-class Keithley2015(Init):
+class Keithley2015(Init): # Digital Multimeter
 
     def stealth(self,status='OFF'): # Disable the display
         self.std.write(f'DISP:ENAB {status}')
@@ -401,8 +401,7 @@ class Keithley2015(Init):
 
     def read(self): # Read instrument current value
         self.std.write('INIT:CONT ON')
-        reading = self.std.query('FETC?')
-        return float(reading)
+        return self.std.query('FETC?')
 
     def slow_read(self): # Read instrument current value
         self.std.write('INIT:CONT ON')
@@ -411,7 +410,7 @@ class Keithley2015(Init):
         time.sleep(20)
         return float(reading)
 
-class Keithley2001(Keithley2015,Init):
+class Keithley2001(Keithley2015,Init): # Digital Multimeter
 
     def set_to_acv(self, range='AUTO',speed='MED', detector='RMS'): # Set instrument to ACV       
         self.std.write('SENS:FUNC "VOLT:AC"')
@@ -457,7 +456,7 @@ class Keithley2001(Keithley2015,Init):
         msmnt = re.search('\S+[Ee][+-]?\d\d', result_string).group(0) # Regex search to grab +/-XXx.XXXX+/-EXX
         return float(msmnt)
 
-class HP3458A(Init):
+class HP3458A(Init): # Reference Multimeter
 
     def __init__(self,resource_address): # Allow GPIB reading in ASCII format
         rm = pv.ResourceManager()
@@ -501,3 +500,63 @@ class HP3458A(Init):
 
     def read(self): # Read Current Value
         return float(self.std.query('SPOLL?'))               
+
+class RSFSP(Init): # Spectrum Analyzer
+
+    def __init__(self,resource_address): # Initialize instrument through PyVisa
+        rm = pv.ResourceManager()
+        self.std = rm.open_resource(resource_address)
+        self.std.timeout = 300e3
+
+    def input_attenuation(self,dB='AUTO'): # Set the input attentuation
+        if dB == 'Auto':
+            self.std.write('INP:ATT:AUTO ON')
+        else:
+            self.std.write(f'INP:ATT {dB}dB')
+
+    def set_averaging(self,n): # Set trace averaging
+        self.std.write(f'AVER:COUNT {n}; AVER:STAT ON; INIT; *WAI')
+
+    def center(self,frequency): # Set center frequency
+        self.std.write(f'FREQ:CENT {frequency}')
+
+    def start(self,frequency): # Set start frequency
+        self.std.write(f'FREQ:START {frequency}')
+
+    def stop(self,frequency): # Set stop frequency
+        self.std.write(f'FREQ:STOP {frequency}')
+
+    def span(self,span): # Set span
+        if span == 'Full':
+            self.std.write('FREQ:SPAN:FULL')
+        elif span == 'Zero':
+            self.std.write('FREQ:SPAN 0Hz')
+        else:
+            self.std.write(f'FREQ:SPAN {span}')
+
+    def rbw(self,bandwidth): # Set Resolution Bandwidth (decouples from VBW)
+        self.std.write(f'BAND:AUTO OFF; BAND {bandwidth}')
+
+    def vbw(self, bandwidth): # Set Video Bandwidth (decouples from RBW)
+        self.std.write(f'BAND:VID:AUTO OFF; BAND:VID {bandwidth}')
+
+    def set_detector(self, type='SAMP'): # Set detector type
+        # Valid types are APE, POS, NEG, AVER, RMS, SAMP, QPE
+        self.std.write(f'DET {type}')
+
+    def set_ref_level(self,level): # Set amplitude reference level
+        self.std.write(f'DISP:WIND:TRAC:Y:RLEV {level}dBm')
+
+    def get_marker_power(self,freq): # Set marker to frequency and grab reading
+        self.std.write(f'CALC:MARK ON; CALC:MARK:X {freq}')
+        return self.std.query('CALC:MARK:Y?')
+
+    def get_peak_power(self): # Set marker to peak and grab reading
+        self.std.write('CALC:MARK:MAX')
+        return self.std.query('CALC:MARK:FUNC:FPE:Y?')
+
+    def get_thd(self,freq): # Set to measure harmonics and grab THD
+        self.std.write('CALC:MARK:FUNC:HARM:STAT ON')
+        self.write('INIT:CONT ON; *WAI')
+        return self.std.query('CALC:MARK:FUNC:HARM:DIST?')
+        
