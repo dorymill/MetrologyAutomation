@@ -508,7 +508,7 @@ class RSFSP(Init): # Spectrum Analyzer
         self.std = rm.open_resource(resource_address)
         self.std.timeout = 300e3
         self.std.write('*RST')
-        self.std.write('SYST:DISP:UPD ON')
+        self.std.write('SYST:DISP:UPD ON') # Allows the display to update
 
     def clear_write_mode(self): # Set trace mode to clear/write
         self.std.write('DISP:WIND:TRAC:MODE WRIT')
@@ -565,7 +565,7 @@ class RSFSP(Init): # Spectrum Analyzer
         self.std.write(f'CALC:MARK ON; CALC:MARK:X {frequency}')
 
     def get_marker_power(self): # Grab Current marker reading
-        return self.std.query('CALC:MARK:Y?')
+        return float(self.std.query('CALC:MARK:Y?'))
 
     def ref_to_marker(self): # Set reference level to marker level
         self.std.write('CALC:MARK:FUNC:REF')
@@ -573,7 +573,7 @@ class RSFSP(Init): # Spectrum Analyzer
     def get_peak_power(self): # Set marker to peak and grab reading
         time.sleep(0.5)
         self.std.write('CALC:MARK:MAX')
-        return self.std.query('CALC:MARK:Y?')
+        return float(self.std.query('CALC:MARK:Y?'))
 
     def get_thd(self): # Set to measure harmonics and grab THD
         # DOes not work on FSP3
