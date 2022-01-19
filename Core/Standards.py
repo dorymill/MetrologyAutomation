@@ -508,6 +508,7 @@ class RSFSP(Init): # Spectrum Analyzer
         self.std = rm.open_resource(resource_address)
         self.std.timeout = 300e3
         self.std.write('*RST')
+        self.std.write('SYST:DISP:UPD ON')
 
     def clear_write_mode(self): # Set trace mode to clear/write
         self.std.write('DISP:WIND:TRAC:MODE WRIT')
@@ -521,11 +522,11 @@ class RSFSP(Init): # Spectrum Analyzer
     def set_averaging(self,n): # Set trace mode to average
         self.std.write(f'AVER:COUNT {n}; DISP:WIND:TRAC:MODE AVER; AVER:STAT ON; INIT; *WAI')
 
-    def single_sweep(self):
+    def single_sweep(self): # Single sweep mode
         self.std.write('INIT:CONT OFF')
 
     def center(self,frequency): # Set center frequency
-        self.std.write(f'FREQ:CENT {frequency}')
+        self.std.write(f'FREQ:CENT {frequency}; *WAI')
 
     def start(self,frequency): # Set start frequency
         self.std.write(f'FREQ:START {frequency}')
@@ -542,27 +543,64 @@ class RSFSP(Init): # Spectrum Analyzer
             self.std.write(f'FREQ:SPAN {span}')
 
     def rbw(self,bandwidth): # Set Resolution Bandwidth (decouples from VBW)
-        self.std.write(f'BAND:AUTO OFF; BAND {bandwidth}')
+        self.std.write(f'BAND {bandwidth}; *WAI')
 
     def vbw(self, bandwidth): # Set Video Bandwidth (decouples from RBW)
-        self.std.write(f'BAND:VID:AUTO OFF; BAND:VID {bandwidth}')
+        self.std.write(f'BAND:VID {bandwidth}; *WAI')
+
+    def window(self,span, center, rbw, ref_level): # Set general measurement parameters
+        self.span(span)
+        self.center(center)
+        self.rbw(rbw)
+        self.set_ref_level(ref_level)
 
     def set_detector(self, type='SAMP'): # Set detector type
         # Valid types are APE, POS, NEG, AVER, RMS, SAMP, QPE
         self.std.write(f'DET {type}')
 
     def set_ref_level(self,level): # Set amplitude reference level
-        self.std.write(f'DISP:WIND:TRAC:Y:RLEV {level}dBm')
+        self.std.write(f'DISP:WIND:TRAC:Y:RLEV {level}dBm; *WAI')
 
-    def get_marker_power(self,freq): # Set marker to frequency and grab reading
-        self.std.write(f'CALC:MARK ON; CALC:MARK:X {freq}')
+    def set_marker_freq(self,frequency): # Set marker frequency
+        self.std.write(f'CALC:MARK ON; CALC:MARK:X {frequency}')
+
+    def get_marker_power(self): # Grab Current marker reading
         return self.std.query('CALC:MARK:Y?')
 
-    def get_peak_power(self): # Set marker to peak and grab reading
-        self.std.write('CALC:MARK:MAX')
-        return self.std.query('CALC:MARK:FUNC:FPE:Y?')
+    def ref_to_marker(self): # Set reference level to marker level
+        self.std.write('CALC:MARK:FUNC:REF')
 
-    def get_thd(self,freq): # Set to measure harmonics and grab THD
+    def get_peak_power(self): # Set marker to peak and grab reading
+        time.sleep(0.5)
+        self.std.write('CALC:MARK:MAX')
+        return self.std.query('CALC:MARK:Y?')
+
+    def get_thd(self): # Set to measure harmonics and grab THD
+        # DOes not work on FSP3
         self.std.write('CALC:MARK:FUNC:HARM:STAT ON')
         self.write('INIT:CONT ON; *WAI')
         return self.std.query('CALC:MARK:FUNC:HARM:DIST?')
+
+    def manual_harmonics(self,fund_freq, fund_power, n_harmonics): # Get worst harmonic distortion
+        harmonics = []
+
+        self.window(10e3,fund_freq,100, fund_power+1)
+
+        time.sleep(float(self.std.query('SWE:TIME?'))+0.5)
+        carrier_power = float(self.get_peak_power())
+
+        for i in range(0,n_harmonics):
+            if fund_freq <= 100:
+                self.window(50,(i+2)*fund_freq,10,fund_power-20)
+            elif fund_freq < 5000:
+                self.window(1000,(i+2)*fund_freq,10,fund_power-20 )
+            else:
+                self.window(10e3,(i+2)*fund_freq,10,fund_power-20)
+
+            time.sleep(float(self.std.query('SWE:TIME?'))+0.5)
+            harmonics.append(carrier_power - float(self.get_peak_power()))
+
+        return -min(harmonics)
+
+    def next_peak(self): # Move the marker to the next highest peak
+        self.std.write('CALC:MARK:MAX:NEXT')
