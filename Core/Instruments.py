@@ -621,6 +621,13 @@ class HP53132A(Init):
     def input_impedance(self,channel=1,impedance=1e6):
         self.std.write(f'INP{channel}:IMP {impedance} OHM')
 
+    def low_pass_filter(self,channel=1,status=True):
+
+        if status:
+            self.std.write(f'INP{channel}:FILT ON')
+        else:
+            self.std.write(f'INP{channel}:FILT OFF')
+
     def frequency_mode(self, channel=1, gate=1):
         self.std.write(f'SENS:FUNC:ON "FREQ {channel}"')
         self.std.write('SENS:FREQ:ARM:SOUR IMM')
@@ -643,52 +650,52 @@ class AgilentN5181A(Init): # Signal generator
 
     def __init__(self,resource_address):
         rm = pv.ResourceManager()
-        self.dut = rm.open_resource(resource_address)
+        self.std = rm.open_resource(resource_address)
 
     def rf_output(self,power,frequency): # RF Output
-        self.dut.write('OUTP:STAT 0')
-        self.dut.write(f'FREQ {frequency}')
-        self.dut.write(f'POW:AMPL {power} dBm')
-        self.dut.write(f'OUTP:STAT 1')
+        self.std.write('OUTP:STAT 0')
+        self.std.write(f'FREQ {frequency}')
+        self.std.write(f'POW:AMPL {power} dBm')
+        self.std.write(f'OUTP:STAT 1')
         time.sleep(3)
              
     def silence(self): # Turn off RF output
-        self.dut.write('OUTP:STAT 0')
+        self.std.write('OUTP:STAT 0')
 
 class HP3325B(Init): # Signal Generator
 
     def command(self,command):
-        self.dut.write(command)
+        self.std.write(command)
 
     def sine_output(self, level, frequency, offset, unit='VO'): # VO is pp. VR is rms
-        if self.dut.query('FU?') != 'FU1':
-            self.dut.write('FU 1')
-        self.dut.write(f'FR{frequency:.1f}HZ OF{offset}VO AM{level}{unit}')
+        if self.std.query('FU?') != 'FU1':
+            self.std.write('FU 1')
+        self.std.write(f'FR{frequency:.1f}HZ OF{offset}VO AM{level}{unit}')
 
     def square_output(self, level, frequency, offset, unit='VO'):
-        if self.dut.query('FU?') != 'FU2':
-            self.dut.write('FU 2')
-        self.dut.write(f'FR{frequency:.1f}HZ OF{offset}VO AM{level}{unit}')
+        if self.std.query('FU?') != 'FU2':
+            self.std.write('FU 2')
+        self.std.write(f'FR{frequency:.1f}HZ OF{offset}VO AM{level}{unit}')
 
     def triangle_output(self, level, frequency, offset, unit='VO'):
-        if self.dut.query('FU?') != 'FU3':
-            self.dut.write('FU 3')
-        self.dut.write(f'FR{frequency:.1f}HZ OF{offset}VO AM{level}{unit}')
+        if self.std.query('FU?') != 'FU3':
+            self.std.write('FU 3')
+        self.std.write(f'FR{frequency:.1f}HZ OF{offset}VO AM{level}{unit}')
 
     def pos_ramp_output(self, level, frequency, offset, unit='VO'):
-        if self.dut.query('FU?') != 'FU4':
-            self.dut.write('FU 4')
-        self.dut.write(f'FR{frequency:.1f}HZ OF{offset}VO AM{level}{unit}')
+        if self.std.query('FU?') != 'FU4':
+            self.std.write('FU 4')
+        self.std.write(f'FR{frequency:.1f}HZ OF{offset}VO AM{level}{unit}')
 
     def neg_ramp_output(self, level, frequency, offset, unit='VO'):
-        if self.dut.query('FU?') != 'FU5':
-            self.dut.write('FU 5')
-        self.dut.write(f'FR{frequency:.1f}HZ OF{offset}VO AM{level}{unit}')
+        if self.std.query('FU?') != 'FU5':
+            self.std.write('FU 5')
+        self.std.write(f'FR{frequency:.1f}HZ OF{offset}VO AM{level}{unit}')
 
     def dc_offset_only(self,offset):
-        if self.dut.query('FU?') != 'FU0':
-            self.dut.write('FU 0')
-        self.dut.write(f'OF{offset}VO')
+        if self.std.query('FU?') != 'FU0':
+            self.std.write('FU 0')
+        self.std.write(f'OF{offset}VO')
 
     def silence(self):
         self.sine_output(0.001,10e3,0)
@@ -696,48 +703,52 @@ class HP3325B(Init): # Signal Generator
 class HP3325A(HP3325B): # Signal Generator
 
     def sine_output(self, level, frequency, offset, unit='VO'): # VO is pp. VR is rms
-        if self.dut.query('FU?') != 'FU1':
-            self.dut.write('FU1AC')
-        self.dut.write(f'FR{frequency:.1f}HZOF{offset}VOAM{level}{unit}')
+        if self.std.query('FU?') != 'FU1':
+            self.std.write('FU1AC')
+        self.std.write(f'FR{frequency:.1f}HZOF{offset}VOAM{level}{unit}')
 
     def square_output(self, level, frequency, offset, unit='VO'):
-        if self.dut.query('FU?') != 'FU2':
-            self.dut.write('FU2AC')
-        self.dut.write(f'FR{frequency:.1f}HZOF{offset}VOAM{level}{unit}')
+        if self.std.query('FU?') != 'FU2':
+            self.std.write('FU2AC')
+        self.std.write(f'FR{frequency:.1f}HZOF{offset}VOAM{level}{unit}')
 
     def triangle_output(self, level, frequency, offset, unit='VO'):
-        if self.dut.query('FU?') != 'FU3':
-            self.dut.write('FU3AC')
-        self.dut.write(f'FR{frequency:.1f}HZOF{offset}VOAM{level}{unit}')
+        if self.std.query('FU?') != 'FU3':
+            self.std.write('FU3AC')
+        self.std.write(f'FR{frequency:.1f}HZOF{offset}VOAM{level}{unit}')
 
     def pos_ramp_output(self, level, frequency, offset, unit='VO'):
-        if self.dut.query('FU?') != 'FU4':
-            self.dut.write('FU4AC')
-        self.dut.write(f'FR{frequency:.1f}HZOF{offset}VOAM{level}{unit}')
+        if self.std.query('FU?') != 'FU4':
+            self.std.write('FU4AC')
+        self.std.write(f'FR{frequency:.1f}HZOF{offset}VOAM{level}{unit}')
 
     def neg_ramp_output(self, level, frequency, offset, unit='VO'):
-        if self.dut.query('FU?') != 'FU5':
-            self.dut.write('FU5AC')
-        self.dut.write(f'FR{frequency:.1f}HZOF{offset}VOAM{level}{unit}')
+        if self.std.query('FU?') != 'FU5':
+            self.std.write('FU5AC')
+        self.std.write(f'FR{frequency:.1f}HZOF{offset}VOAM{level}{unit}')
 
     def dc_offset_only(self,offset):
-        if self.dut.query('FU?') != 'FU0':
-            self.dut.write('FU0AC')
-        self.dut.write(f'OF{offset}VO')
+        if self.std.query('FU?') != 'FU0':
+            self.std.write('FU0AC')
+        self.std.write(f'OF{offset}VO')
 
     def silence(self):
         self.sine_output(0.001,10e3,0)
 
-class HP3314A(Init):
+class HP3314A(Init): # Signal Generator
 
     def sine_output(self, level, frequency, offset, unit='VO'): # VO is VPP
-        self.dut.write('FU 1')
-        self.dut.write(f'FR{frequency:.1f}HZOF{offset}VOAP{level}{unit}')
+        self.std.write('FU 1')
+        self.std.write(f'FR{frequency:.1f}HZOF{offset}VOAP{level}{unit}')
 
     def square_output(self, level, frequency, offset, unit='VO'): # VO is VPP
-        self.dut.write('FU 2')
-        self.dut.write(f'FR{frequency:.1f}HZOF{offset}VOAP{level}{unit}')
+        self.std.write('FU 2')
+        self.std.write(f'FR{frequency:.1f}HZOF{offset}VOAP{level}{unit}')
 
     def triangle_output(self, level, frequency, offset, unit='VO'): # VO is VPP
-        self.dut.write('FU 3')
-        self.dut.write(f'FR{frequency:.1f}HZOF{offset}VOAP{level}{unit}')
+        self.std.write('FU 3')
+        self.std.write(f'FR{frequency:.1f}HZOF{offset}VOAP{level}{unit}')
+
+if __name__ == '__main__':
+
+    swap('\nDocumentation coming soon!')
