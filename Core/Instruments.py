@@ -4,7 +4,7 @@ import pandas as pd
 
 # Common Functions
 
-def initialize_std(name='standard'): # Initialize a standard instrument
+def initialize_ins(name='standard'): # Initialize a standard instrument
     clear()
     rmq = pv.ResourceManager()
     instruments = [dev for dev in rmq.list_resources()]
@@ -18,22 +18,6 @@ def initialize_std(name='standard'): # Initialize a standard instrument
     clear()
 
     return instruments[index1]
-
-def initialize_dut(name='DUT'): # Initialize a DUT
-    clear()
-    rmq = pv.ResourceManager()
-    instruments = [dev for dev in rmq.list_resources()]
-
-    print('\nAvailable devices:\n')
-
-    for i,dev in enumerate(instruments):
-        print(f'{i} ) {dev}')
-
-    index = int(input(f'\nEnter the {name} index | '))
-
-    clear()
-
-    return instruments[index]
 
 def pause(): # Pause script
     input('\nPress enter to continue. . .')
@@ -296,10 +280,8 @@ class HP4418B(Init): # RF Power Meter
         self.ins.write('SENS1:CORR:CSET1:STAT ON')
         self.ins.write('SENSe1:FREQuency {:.6f}'.format(freq))
         self.ins.write('INIT1')
-        time.sleep(3)
-        self.ins.write('FETC1?')
-        time.sleep(5)
-        return float(self.ins.read())
+        time.sleep(3)     
+        return float(self.ins.query('FETC1?'))
 
     def measure_power_w_corrections(self,correction): # Measure power with given corrections
         self.ins.write('ABORt1')
