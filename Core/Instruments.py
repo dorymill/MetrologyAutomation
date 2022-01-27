@@ -4,7 +4,7 @@ import pandas as pd
 
 # Common Functions
 
-def initialize_ins(name='standard'): # Initialize a standard instrument
+def initialize_ins(name='{instrument name}'): # Initialize an instrument
     clear()
     rmq = pv.ResourceManager()
     instruments = [dev for dev in rmq.list_resources()]
@@ -289,9 +289,7 @@ class HP4418B(Init): # RF Power Meter
         self.ins.write(f'CAL1:RCF {correction:.2f}PCT')
         self.ins.write('INIT1')
         time.sleep(5)
-        self.ins.write('FETC1?')
-        time.sleep(3)
-        return float(self.ins.read())
+        return float(self.ins.query('FETC?'))
 
     def load_corrections(self,inlist): # Load correction factors
         from scipy.interpolate import interp1d
@@ -335,11 +333,10 @@ class Keithley2015(Init): # Digital Multimeter
         # Figure out how to change the rate on ACV mode
         time.sleep(2)
 
-    def set_to_dbm(self, impedance=50):
+    def set_to_dbm(self, impedance=50): # Set ACV unit to DBM
         self.set_to_acv()
         self.ins.write(f'UNIT:VOLT:AC:DBM:IMP {impedance}')
         self.ins.write('UNIT:VOLT:AC DBM')
-
 
     def set_to_2wire_res(self, range='AUTO', speed='MED'): # Set instrument to 2 Wire Resistance
         self.ins.write('SENS:FUNC "RES"')
@@ -485,7 +482,7 @@ class HP3458A(Init): # Reference Multimeter
     def set_to_aci(self, range='AUTO', nplc=100): # Set to ACI
         self.ins.write(f'ACI,{range} ; NPLC {nplc}; TRIG AUTO')
 
-    def set_trig_delay(self,delay):
+    def set_trig_delay(self,delay): # Trigger delay setting
         self.ins.write(f'DELAY {delay}')
 
     def msg(self,string): # Send a message to the display
@@ -604,37 +601,53 @@ class RSFSP(Init): # Spectrum Analyzer
 
 class HP53132A(Init): # Counter
 
-    def input_coupling(self,channel=1, type='AC'):
+    def input_coupling(self,channel=1, type='AC'): # Input Coupling change
         self.ins.write(f'INP{channel}:COUP {type}')
 
-    def input_impedance(self,channel=1,impedance=1e6):
+    def input_impedance(self,channel=1,impedance=1e6): # Input Impedance change
         self.ins.write(f'INP{channel}:IMP {impedance} OHM')
 
-    def low_pass_filter(self,channel=1,status=True):
+    def averaging(self,n=100, state=True): # Turn on averaging
+        if state:
+            self.ins.write('INIT:CONT OFF')
+            self.ins.write(f'CALC3:AVER:COUN {n}')
+            self.ins.write('CALC3:AVER:TYPE MEAN')
+            self.ins.write('DISP:TEXT:FEED "CALC3"')
+            self.ins.write('CALC3:AVER:STAT ON')
+            self.ins.write('INIT:CONT ON')
+
+        else:
+            self.ins.write('CALC3:AVER:STAT OFF')
+
+    def low_pass_filter(self,channel=1,status=True): # Low Pass Filter engage
 
         if status:
             self.ins.write(f'INP{channel}:FILT ON')
         else:
             self.ins.write(f'INP{channel}:FILT OFF')
 
-    def rel_trigger_level(self,channel=1,percent=50):
+    def rel_trigger_level(self,channel=1,percent=50): # Relative trigger level change
         self.ins.write(f'SENS:EVEN{channel}:LEV:REL {percent}')
 
-    def frequency_mode(self, channel=1, gate=1):
+    def frequency_mode(self, channel=1, gate=1): # Measure frequency
         self.ins.write(f'SENS:FUNC:ON "FREQ {channel}"')
         self.ins.write('SENS:FREQ:ARM:SOUR IMM')
         self.ins.write(f'SENS:FREQ:ARM:STOP:TIM {gate}')
         self.ins.write('INIT:CONT ON')
 
-    def rise_mode(self):
+    def rise_mode(self): # Measure Rise TIme
         self.ins.write(f'SENS:FUNC:ON ":RISE:TIME 1"')
         self.ins.write('INIT:CONT ON')
 
-    def fall_mode(self):
+    def fall_mode(self): # Measure Fall Time
         self.ins.write('SENS:FUNC:ON ":FALL:TIME 1"')
         self.ins.write('INIT:CONT ON')
 
-    def read(self):
+    def time_of_flight(self): # Measure Time of Flight
+        self.ins.write('SENS:FUNC "TINT 1,2"')
+        self.ins.write('INIT:CONT ON')
+
+    def read(self): # Read
         return float(self.ins.query('FETC?'))
 
 class HP8901B(Init): # Modulation Analyzer
@@ -735,6 +748,38 @@ class HP8901B(Init): # Modulation Analyzer
     def read(self): # Take a measurement
         return float(self.ins.query('GET'))
 
+class TSG4104A(Init): # Signal Generator
+
+    def silence(self): # Reset the instrument
+        self.ins.write('ENBL 0')
+        self.ins.write('ENBR 0')
+        
+    def rf(self, amp, frequency, unit='dBM'): # RF Output Units = {RMS, dBM}
+        if frequency >= 62.5e6:
+            self.ins.write('ENBL 0')
+            self.ins.write(f'AMPR {amp} {unit}')
+            self.ins.write(f'FREQ {frequency}')
+            self.ins.write('ENBR 1')
+        else:
+            swap('\nLF Output engaged. Swap output.')
+            self.ins.write('ENBL 0')
+            self.ins.write(f'FREQ {frequency}')
+            self.ins.write(f'AMPL {amp} {unit}')
+            self.ins.write('ENBL 1')
+
+    def lf(self, amp, frequency, unit='dBm'): # LF Output
+        if frequency <= 62.5e6: 
+            self.ins.write('ENBL 0')
+            self.ins.write(f'FREQ {frequency}')
+            self.ins.write(f'AMPL {amp} {unit}')
+            self.ins.write('ENBL 1')
+        else:
+            swap('\nRF Output engaged. Swap output.')
+            self.ins.write('ENBL 0')
+            self.ins.write(f'AMPR {amp} {unit}')
+            self.ins.write(f'FREQ {frequency}')
+            self.ins.write('ENBR 1')
+
 # DUT's
 class AgilentN5181A(Init): # Signal generator
 
@@ -762,30 +807,35 @@ class HP3325B(Init): # Signal Generator
             self.ins.write('FU 1')
         self.ins.write(f'FR{frequency:.1f}HZ OF{offset}VO AM{level}{unit}')
 
-    def square_output(self, level, frequency, offset, unit='VO'):
+    def square_output(self, level, frequency, offset, unit='VO'): # Square Wave output
         if self.ins.query('FU?') != 'FU2':
             self.ins.write('FU 2')
         self.ins.write(f'FR{frequency:.1f}HZ OF{offset}VO AM{level}{unit}')
 
-    def triangle_output(self, level, frequency, offset, unit='VO'):
+    def triangle_output(self, level, frequency, offset, unit='VO'): # Triangle Wave output
         if self.ins.query('FU?') != 'FU3':
             self.ins.write('FU 3')
         self.ins.write(f'FR{frequency:.1f}HZ OF{offset}VO AM{level}{unit}')
 
-    def pos_ramp_output(self, level, frequency, offset, unit='VO'):
+    def pos_ramp_output(self, level, frequency, offset, unit='VO'): # +Ramp Wave output
         if self.ins.query('FU?') != 'FU4':
             self.ins.write('FU 4')
         self.ins.write(f'FR{frequency:.1f}HZ OF{offset}VO AM{level}{unit}')
 
-    def neg_ramp_output(self, level, frequency, offset, unit='VO'):
+    def neg_ramp_output(self, level, frequency, offset, unit='VO'): # -Ramp Wave output
         if self.ins.query('FU?') != 'FU5':
             self.ins.write('FU 5')
         self.ins.write(f'FR{frequency:.1f}HZ OF{offset}VO AM{level}{unit}')
 
-    def dc_offset_only(self,offset):
+    def dc_offset_only(self,offset): # DC Offset Output
         if self.ins.query('FU?') != 'FU0':
             self.ins.write('FU 0')
         self.ins.write(f'OF{offset}VO')
+
+    def phase_mode(self, phase): # Phase Modulation Setting
+        self.ins.write('MP1')
+        self.ins.write(f'PH{phase}DE')
+
 
     def silence(self):
         self.sine_output(0.001,10e3,0)
