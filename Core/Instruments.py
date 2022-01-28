@@ -289,7 +289,9 @@ class HP4418B(Init): # RF Power Meter
         self.ins.write(f'CAL1:RCF {correction:.2f}PCT')
         self.ins.write('INIT1')
         time.sleep(5)
-        return float(self.ins.query('FETC?'))
+        self.ins.write('FETC1?')
+        time.sleep(3)
+        return float(self.ins.read())
 
     def load_corrections(self,inlist): # Load correction factors
         from scipy.interpolate import interp1d
@@ -333,10 +335,11 @@ class Keithley2015(Init): # Digital Multimeter
         # Figure out how to change the rate on ACV mode
         time.sleep(2)
 
-    def set_to_dbm(self, impedance=50): # Set ACV unit to DBM
+    def set_to_dbm(self, impedance=50):
         self.set_to_acv()
         self.ins.write(f'UNIT:VOLT:AC:DBM:IMP {impedance}')
         self.ins.write('UNIT:VOLT:AC DBM')
+
 
     def set_to_2wire_res(self, range='AUTO', speed='MED'): # Set instrument to 2 Wire Resistance
         self.ins.write('SENS:FUNC "RES"')
@@ -482,7 +485,7 @@ class HP3458A(Init): # Reference Multimeter
     def set_to_aci(self, range='AUTO', nplc=100): # Set to ACI
         self.ins.write(f'ACI,{range} ; NPLC {nplc}; TRIG AUTO')
 
-    def set_trig_delay(self,delay): # Trigger delay setting
+    def set_trig_delay(self,delay):
         self.ins.write(f'DELAY {delay}')
 
     def msg(self,string): # Send a message to the display
@@ -601,13 +604,13 @@ class RSFSP(Init): # Spectrum Analyzer
 
 class HP53132A(Init): # Counter
 
-    def input_coupling(self,channel=1, type='AC'): # Input Coupling change
+    def input_coupling(self,channel=1, type='AC'):
         self.ins.write(f'INP{channel}:COUP {type}')
 
-    def input_impedance(self,channel=1,impedance=1e6): # Input Impedance change
+    def input_impedance(self,channel=1,impedance=1e6):
         self.ins.write(f'INP{channel}:IMP {impedance} OHM')
 
-    def averaging(self,n=100, state=True): # Turn on averaging
+    def averaging(self,n=100, state=True):
         if state:
             self.ins.write('INIT:CONT OFF')
             self.ins.write(f'CALC3:AVER:COUN {n}')
@@ -619,35 +622,35 @@ class HP53132A(Init): # Counter
         else:
             self.ins.write('CALC3:AVER:STAT OFF')
 
-    def low_pass_filter(self,channel=1,status=True): # Low Pass Filter engage
+    def low_pass_filter(self,channel=1,status=True):
 
         if status:
             self.ins.write(f'INP{channel}:FILT ON')
         else:
             self.ins.write(f'INP{channel}:FILT OFF')
 
-    def rel_trigger_level(self,channel=1,percent=50): # Relative trigger level change
+    def rel_trigger_level(self,channel=1,percent=50):
         self.ins.write(f'SENS:EVEN{channel}:LEV:REL {percent}')
 
-    def frequency_mode(self, channel=1, gate=1): # Measure frequency
+    def frequency_mode(self, channel=1, gate=1):
         self.ins.write(f'SENS:FUNC:ON "FREQ {channel}"')
         self.ins.write('SENS:FREQ:ARM:SOUR IMM')
         self.ins.write(f'SENS:FREQ:ARM:STOP:TIM {gate}')
         self.ins.write('INIT:CONT ON')
 
-    def rise_mode(self): # Measure Rise TIme
+    def rise_mode(self):
         self.ins.write(f'SENS:FUNC:ON ":RISE:TIME 1"')
         self.ins.write('INIT:CONT ON')
 
-    def fall_mode(self): # Measure Fall Time
+    def fall_mode(self):
         self.ins.write('SENS:FUNC:ON ":FALL:TIME 1"')
         self.ins.write('INIT:CONT ON')
 
-    def time_of_flight(self): # Measure Time of Flight
+    def time_of_flight(self):
         self.ins.write('SENS:FUNC "TINT 1,2"')
         self.ins.write('INIT:CONT ON')
 
-    def read(self): # Read
+    def read(self):
         return float(self.ins.query('FETC?'))
 
 class HP8901B(Init): # Modulation Analyzer
@@ -807,32 +810,32 @@ class HP3325B(Init): # Signal Generator
             self.ins.write('FU 1')
         self.ins.write(f'FR{frequency:.1f}HZ OF{offset}VO AM{level}{unit}')
 
-    def square_output(self, level, frequency, offset, unit='VO'): # Square Wave output
+    def square_output(self, level, frequency, offset, unit='VO'):
         if self.ins.query('FU?') != 'FU2':
             self.ins.write('FU 2')
         self.ins.write(f'FR{frequency:.1f}HZ OF{offset}VO AM{level}{unit}')
 
-    def triangle_output(self, level, frequency, offset, unit='VO'): # Triangle Wave output
+    def triangle_output(self, level, frequency, offset, unit='VO'):
         if self.ins.query('FU?') != 'FU3':
             self.ins.write('FU 3')
         self.ins.write(f'FR{frequency:.1f}HZ OF{offset}VO AM{level}{unit}')
 
-    def pos_ramp_output(self, level, frequency, offset, unit='VO'): # +Ramp Wave output
+    def pos_ramp_output(self, level, frequency, offset, unit='VO'):
         if self.ins.query('FU?') != 'FU4':
             self.ins.write('FU 4')
         self.ins.write(f'FR{frequency:.1f}HZ OF{offset}VO AM{level}{unit}')
 
-    def neg_ramp_output(self, level, frequency, offset, unit='VO'): # -Ramp Wave output
+    def neg_ramp_output(self, level, frequency, offset, unit='VO'):
         if self.ins.query('FU?') != 'FU5':
             self.ins.write('FU 5')
         self.ins.write(f'FR{frequency:.1f}HZ OF{offset}VO AM{level}{unit}')
 
-    def dc_offset_only(self,offset): # DC Offset Output
+    def dc_offset_only(self,offset):
         if self.ins.query('FU?') != 'FU0':
             self.ins.write('FU 0')
         self.ins.write(f'OF{offset}VO')
 
-    def phase_mode(self, phase): # Phase Modulation Setting
+    def phase_mode(self, phase):
         self.ins.write('MP1')
         self.ins.write(f'PH{phase}DE')
 
