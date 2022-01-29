@@ -280,7 +280,7 @@ class HP4418B(Init): # RF Power Meter
         self.ins.write('SENS1:CORR:CSET1:STAT ON')
         self.ins.write('SENSe1:FREQuency {:.6f}'.format(freq))
         self.ins.write('INIT1')
-        time.sleep(3)     
+        time.sleep(5)     
         return float(self.ins.query('FETC1?'))
 
     def measure_power_w_corrections(self,correction): # Measure power with given corrections
@@ -289,9 +289,7 @@ class HP4418B(Init): # RF Power Meter
         self.ins.write(f'CAL1:RCF {correction:.2f}PCT')
         self.ins.write('INIT1')
         time.sleep(5)
-        self.ins.write('FETC1?')
-        time.sleep(3)
-        return float(self.ins.read())
+        return float(self.ins.query('FETC?'))
 
     def load_corrections(self,inlist): # Load correction factors
         from scipy.interpolate import interp1d
