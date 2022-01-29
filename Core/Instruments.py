@@ -340,6 +340,18 @@ class Keithley2015(Init): # Digital Multimeter
         self.ins.write(f'UNIT:VOLT:AC:DBM:IMP {impedance}')
         self.ins.write('UNIT:VOLT:AC DBM')
 
+    def set_to_THD(self, frequency, unit='dB'):
+        if unit == '%':
+            self.ins.write('SENS:FUNC "DIST"')
+            self.ins.write(f'SENS:DIST:FREQ {frequency}')
+        else:
+            self.ins.write('SENS:FUNC "DIST"')
+            self.ins.write('SENS:DIST:TYPE SINAD')
+            self.ins.write('SENS:DIST:TYPE THD')
+            self.ins.write(f'SENS:DIST:FREQ {frequency}')
+
+    def thd_freq(self,frequency):
+        self.ins.write(f'SENS:DIST:FREQ {frequency}')
 
     def set_to_2wire_res(self, range='AUTO', speed='MED'): # Set instrument to 2 Wire Resistance
         self.ins.write('SENS:FUNC "RES"')
@@ -610,11 +622,23 @@ class HP53132A(Init): # Counter
     def input_impedance(self,channel=1,impedance=1e6):
         self.ins.write(f'INP{channel}:IMP {impedance} OHM')
 
-    def averaging(self,n=100, state=True):
+    def averaging(self, n=100, state=True):
         if state:
             self.ins.write('INIT:CONT OFF')
             self.ins.write(f'CALC3:AVER:COUN {n}')
             self.ins.write('CALC3:AVER:TYPE MEAN')
+            self.ins.write('DISP:TEXT:FEED "CALC3"')
+            self.ins.write('CALC3:AVER:STAT ON')
+            self.ins.write('INIT:CONT ON')
+
+        else:
+            self.ins.write('CALC3:AVER:STAT OFF')
+
+    def std_deviation(self, n=100, state=True):
+        if state:
+            self.ins.write('INIT:CONT OFF')
+            self.ins.write(f'CALC3:AVER:COUN {n}')
+            self.ins.write('CALC3:AVER:TYPE SDEV')
             self.ins.write('DISP:TEXT:FEED "CALC3"')
             self.ins.write('CALC3:AVER:STAT ON')
             self.ins.write('INIT:CONT ON')
@@ -644,6 +668,12 @@ class HP53132A(Init): # Counter
 
     def fall_mode(self):
         self.ins.write('SENS:FUNC:ON ":FALL:TIME 1"')
+        self.ins.write('INIT:CONT ON')
+
+    def period_mode(self,channel=1, gate=1):
+        self.ins.write(f'SENS:FUNC "PERIOD {channel}"')
+        self.ins.write('SENS:FREQ:ARM:SOUR IMM')
+        self.ins.write(f'SENS:FREQ:ARM:STOP:TIM {gate}')
         self.ins.write('INIT:CONT ON')
 
     def time_of_flight(self):
@@ -808,27 +838,32 @@ class HP3325B(Init): # Signal Generator
     def sine_output(self, level, frequency, offset, unit='VO'): # VO is pp. VR is rms
         if self.ins.query('FU?') != 'FU1':
             self.ins.write('FU 1')
-        self.ins.write(f'FR{frequency:.1f}HZ OF{offset}VO AM{level}{unit}')
+        self.ins.write('OF0.0VO')
+        self.ins.write(f'FR{frequency:.1f}HZ AM{level}{unit} OF{offset}VO')
 
     def square_output(self, level, frequency, offset, unit='VO'):
         if self.ins.query('FU?') != 'FU2':
             self.ins.write('FU 2')
-        self.ins.write(f'FR{frequency:.1f}HZ OF{offset}VO AM{level}{unit}')
+        self.ins.write('OF0.0VO')
+        self.ins.write(f'FR{frequency:.1f}HZ AM{level}{unit} OF{offset}VO')
 
     def triangle_output(self, level, frequency, offset, unit='VO'):
         if self.ins.query('FU?') != 'FU3':
             self.ins.write('FU 3')
-        self.ins.write(f'FR{frequency:.1f}HZ OF{offset}VO AM{level}{unit}')
+        self.ins.write('OF0.0VO')
+        self.ins.write(f'FR{frequency:.1f}HZ AM{level}{unit} OF{offset}VO')
 
     def pos_ramp_output(self, level, frequency, offset, unit='VO'):
         if self.ins.query('FU?') != 'FU4':
             self.ins.write('FU 4')
-        self.ins.write(f'FR{frequency:.1f}HZ OF{offset}VO AM{level}{unit}')
+        self.ins.write('OF0.0VO')
+        self.ins.write(f'FR{frequency:.1f}HZ AM{level}{unit} OF{offset}VO')
 
     def neg_ramp_output(self, level, frequency, offset, unit='VO'):
         if self.ins.query('FU?') != 'FU5':
             self.ins.write('FU 5')
-        self.ins.write(f'FR{frequency:.1f}HZ OF{offset}VO AM{level}{unit}')
+        self.ins.write('OF0.0VO')
+        self.ins.write(f'FR{frequency:.1f}HZ AM{level}{unit}  OF{offset}VO')
 
     def dc_offset_only(self,offset):
         if self.ins.query('FU?') != 'FU0':
@@ -839,6 +874,20 @@ class HP3325B(Init): # Signal Generator
         self.ins.write('MP1')
         self.ins.write(f'PH{phase}DE')
 
+    def cont_sweep(self):
+        self.ins.write('SC')
+
+    def sweep_start_freq(self,frequency):
+        self.ins.write(f'ST{frequency:.1f}HZ')
+
+    def sweep_stop_freq(self,frequency):
+        self.ins.write(f'SP{frequency:.1f}HZ')
+
+    def sweep_marker(self,frequency):
+        self.ins.write(f'MF{frequency}HZ')
+
+    def sweep_time(self, time):
+        self.ins.write(f'TI{time:.3f}SE')
 
     def silence(self):
         self.sine_output(0.001,10e3,0)
@@ -848,27 +897,32 @@ class HP3325A(HP3325B): # Signal Generator
     def sine_output(self, level, frequency, offset, unit='VO'): # VO is pp. VR is rms
         if self.ins.query('FU?') != 'FU1':
             self.ins.write('FU1AC')
-        self.ins.write(f'FR{frequency:.1f}HZOF{offset}VOAM{level}{unit}')
+        self.ins.write('OF0.0VO')
+        self.ins.write(f'FR{frequency:.1f}HZAM{level}{unit}OF{offset}VO')
 
     def square_output(self, level, frequency, offset, unit='VO'):
         if self.ins.query('FU?') != 'FU2':
             self.ins.write('FU2AC')
-        self.ins.write(f'FR{frequency:.1f}HZOF{offset}VOAM{level}{unit}')
+        self.ins.write('OF0.0VO')
+        self.ins.write(f'FR{frequency:.1f}HZAM{level}{unit}OF{offset}VO')
 
     def triangle_output(self, level, frequency, offset, unit='VO'):
         if self.ins.query('FU?') != 'FU3':
             self.ins.write('FU3AC')
-        self.ins.write(f'FR{frequency:.1f}HZOF{offset}VOAM{level}{unit}')
+        self.ins.write('OF0.0VO')
+        self.ins.write(f'FR{frequency:.1f}HZAM{level}{unit}OF{offset}VO')
 
     def pos_ramp_output(self, level, frequency, offset, unit='VO'):
         if self.ins.query('FU?') != 'FU4':
             self.ins.write('FU4AC')
-        self.ins.write(f'FR{frequency:.1f}HZOF{offset}VOAM{level}{unit}')
+        self.ins.write('OF0.0VO')
+        self.ins.write(f'FR{frequency:.1f}HZAM{level}{unit}OF{offset}VO')
 
     def neg_ramp_output(self, level, frequency, offset, unit='VO'):
         if self.ins.query('FU?') != 'FU5':
             self.ins.write('FU5AC')
-        self.ins.write(f'FR{frequency:.1f}HZOF{offset}VOAM{level}{unit}')
+        self.ins.write('OF0.0VO')
+        self.ins.write(f'FR{frequency:.1f}HZAM{level}{unit}OF{offset}VO')
 
     def dc_offset_only(self,offset):
         if self.ins.query('FU?') != 'FU0':
