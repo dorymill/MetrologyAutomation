@@ -947,3 +947,5 @@ class HP3314A(Init): # Signal Generator
 if __name__ == '__main__':
 
     swap('\nDocumentation coming soon!')
+    
+   
