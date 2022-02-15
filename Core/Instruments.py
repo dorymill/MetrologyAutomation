@@ -7,9 +7,10 @@
 #                                                        #
 #                                                        #
 ##########################################################
-import pyvisa as pv
 import time, re, os
+import pyvisa as pv
 import pandas as pd
+from scipy.interpolate import interp1d
 
 # Common Functions
 
@@ -208,9 +209,9 @@ class Fluke55XXA(Init): # Multifunction Calibrator
         self.ins.write(f'OUT {cap} F')
         self.ins.write('OPER')
 
-    def thermocouple_temp(self,temp,unit='C',type='K'): # T/C Output
+    def thermocouple_temp(self,temp,unit='C',tctype='K'): # T/C Output
         self.ins.write('STBY')
-        self.ins.write(f'TC_TYPE {type}')
+        self.ins.write(f'TC_TYPE {tctype}')
 
         if unit=='F':
             self.ins.write(f'OUT {temp} FAR')
@@ -220,7 +221,7 @@ class Fluke55XXA(Init): # Multifunction Calibrator
         
         self.ins.write('OPER')
 
-    def rtd_2wire_simulation(self,temp,unit='C',type='PT385'): # 2-Wire RTD Output
+    def rtd_2wire_simulation(self,temp,unit='C',tctype='PT385'): # 2-Wire RTD Output
         self.ins.write('STBY')
 
         if unit=='F':
@@ -228,11 +229,11 @@ class Fluke55XXA(Init): # Multifunction Calibrator
         else:
             self.ins.write(f'OUT {temp} CEL')
 
-        self.ins.write(f'RTD_TYPE {type}')
+        self.ins.write(f'RTD_TYPE {tctype}')
         self.ins.write('ZCOMP WIRE2')
         self.ins.write('OPER')
 
-    def rtd_4wire_simulation(self,temp,unit='C',type='PT385'): # 4-Wire RTD Output
+    def rtd_4wire_simulation(self,temp,unit='C',tctype='PT385'): # 4-Wire RTD Output
         self.ins.write('STBY')
 
         if unit=='F':
@@ -240,7 +241,7 @@ class Fluke55XXA(Init): # Multifunction Calibrator
         else:
             self.ins.write(f'OUT {temp} CEL')
 
-        self.ins.write(f'RTD_TYPE {type}')
+        self.ins.write(f'RTD_TYPE {tctype}')
         self.ins.write('ZCOMP WIRE4')
         self.ins.write('OPER')
 
@@ -298,7 +299,6 @@ class HP4418B(Init): # RF Power Meter
         return float(self.ins.query('FETC?'))
 
     def load_corrections(self,inlist): # Load correction factors
-        from scipy.interpolate import interp1d
         df = pd.read_csv(inlist)
         corr_freqs = [float(a)*1e6 for a in df['Frequency']]
         corr_factors = [float(a) for a in df['Factor']]   
@@ -306,17 +306,17 @@ class HP4418B(Init): # RF Power Meter
 
 class Keithley2015(Init): # Digital Multimeter
 
-    def stealth(self,status='OFF'): # Disable the display
+    def stealth(self, status='OFF'): # Disable the display
         self.ins.write(f'DISP:ENAB {status}')
 
-    def set_to_dcv(self, range='AUTO',speed='MED'): # Set instrument to DCV      
+    def set_to_dcv(self, speed='AUTO', vrange='AUTO'): # Set instrument to DCV      
         self.ins.write('SENS:FUNC "VOLT:DC"')
         #self.ins.write('INIT:CONT ON')
 
-        if range == 'AUTO':
+        if vrange == 'AUTO':
             self.ins.write('SENS:VOLT:DC:RANG:AUTO 1')
         else:
-            self.ins.write(f'SENS:VOLT:DC:RANG {range}')
+            self.ins.write(f'SENS:VOLT:DC:RANG {vrange}')
 
         if speed == 'MED':
             self.ins.write('SENS:VOLT:DC:NPLC 1')
@@ -327,16 +327,15 @@ class Keithley2015(Init): # Digital Multimeter
 
         time.sleep(2)
 
-    def set_to_acv(self, range='AUTO',speed='MED'): # Set instrument to ACV       
+    def set_to_acv(self, vrange='AUTO'): # Set instrument to ACV       
         self.ins.write('SENS:FUNC "VOLT:AC"')
         self.ins.write('UNIT:VOLT:AC V')
 
-        if range == 'AUTO':
+        if vrange == 'AUTO':
             self.ins.write('SENS:VOLT:AC:RANG:AUTO 1')
         else:
-            self.ins.write(f'SENS:VOLT:AC:RANG {range}')
+            self.ins.write(f'SENS:VOLT:AC:RANG {vrange}')
 
-        # Figure out how to change the rate on ACV mode
         time.sleep(2)
 
     def set_to_dbm(self, impedance=50): # Set to dBm mode
@@ -357,52 +356,52 @@ class Keithley2015(Init): # Digital Multimeter
     def thd_freq(self,frequency): # Set THD frequency
         self.ins.write(f'SENS:DIST:FREQ {frequency}')
 
-    def set_to_2wire_res(self, range='AUTO', speed='MED'): # Set instrument to 2 Wire Resistance
+    def set_to_2wire_res(self, resrange='AUTO', speed='MED'): # Set instrument to 2 Wire Resistance
         self.ins.write('SENS:FUNC "RES"')
 
-        if range == 'AUTO':
+        if resrange == 'AUTO':
             self.ins.write('SENS:RES:RANG:AUTO 1')
         else:
-            self.ins.write(f'SENS:RES:RANG {range}')
+            self.ins.write(f'SENS:RES:RANG {resrange}')
         time.sleep(2)
 
-    def set_to_4wire_res(self, range='AUTO', speed='MED'): # Set instrument to 4 Wire Resistance
+    def set_to_4wire_res(self, resrange='AUTO', speed='MED'): # Set instrument to 4 Wire Resistance
         self.ins.write('SENS:FUNC "FRES"')
 
-        if range == 'AUTO':
+        if resrange == 'AUTO':
             self.ins.write('SENS:FRES:RANG:AUTO 1')
         else:
-            self.ins.write(f'SENS:FRES:RANG {range}')
+            self.ins.write(f'SENS:FRES:RANG {resrange}')
         time.sleep(2)
 
-    def set_to_aci(self, range='AUTO', speed='MED'): # Set instrument to ACI
+    def set_to_aci(self, irange='AUTO', speed='MED'): # Set instrument to ACI
         self.ins.write('SENS:FUNC "CURR:AC"')
         #self.ins.write('INIT:CONT ON')
 
-        if range == 'AUTO':
+        if irange == 'AUTO':
             self.ins.write('SENS:CURR:AC:RANG:AUTO 1')
         else:
-            self.ins.write(f'SENS:CURR:AC:RANG {range}')
+            self.ins.write(f'SENS:CURR:AC:RANG {irange}')
 
         # Figure out how to change the rate on ACImode
         time.sleep(2)
 
-    def set_to_dci(self, range='AUTO', speed='MED'): # Set instrument to DCI
+    def set_to_dci(self, irange='AUTO', speed='MED'): # Set instrument to DCI
         self.ins.write('SENS:FUNC "CURR:DC"')
 
-        if range == 'AUTO':
+        if irange == 'AUTO':
             self.ins.write('SENS:CURR:DC:RANG:AUTO 1')
         else:
-            self.ins.write(f'SENS:CURR:DC:RANG {range}')
+            self.ins.write(f'SENS:CURR:DC:RANG {irange}')
         time.sleep(2)
 
     def set_to_freq(self): # Set instrument to Frequency
         self.ins.write('SENS:FUNC "FREQ"')
         time.sleep(2)
 
-    def set_to_thermocouple(self,type='J'): # Set instrument to Thermocouple
+    def set_to_thermocouple(self,tctype='J'): # Set instrument to Thermocouple
         self.ins.write('SENS:FUNC "TEMP"')
-        self.ins.write(f'SENS:TEMP:TC:TYPE {type}')
+        self.ins.write(f'SENS:TEMP:TC:TYPE {tctype}')
         time.sleep(2)
 
     def set_ac_averaging(self, naverages=10): # Set number of readings for the moving average filter
@@ -424,35 +423,35 @@ class Keithley2015(Init): # Digital Multimeter
 
 class Keithley2001(Keithley2015,Init): # Digital Multimeter
 
-    def set_to_acv(self, range='AUTO',speed='MED', detector='RMS'): # Set instrument to ACV       
+    def set_to_acv(self, vrange='AUTO',speed='MED', detector='RMS'): # Set instrument to ACV       
         self.ins.write('SENS:FUNC "VOLT:AC"')
         # Avaliable modes | RMS, AVERage, LFRMs, NPeak, PPeak
         self.ins.write(f'SENS:VOLT:AC:DET:FUNC {detector}')
 
-        if range == 'AUTO':
+        if vrange == 'AUTO':
             self.ins.write('SENS:VOLT:AC:RANG:AUTO 1')
         else:
-            self.ins.write(f'SENS:VOLT:AC:RANG {range}')
+            self.ins.write(f'SENS:VOLT:AC:RANG {vrange}')
 
         # Figure out how to change the rate on ACV mode
         time.sleep(2)
 
-    def set_to_thermocouple(self,type='J'): # Set instrument to Thermocouple
+    def set_to_thermocouple(self,tctype='J'): # Set instrument to Thermocouple
         self.ins.write('SENS:FUNC "TEMP"')
         self.ins.write('SENS:TEMP:TRAN TC')
-        self.ins.write(f'SENS:TEMP:TC:TYPE {type}')
+        self.ins.write(f'SENS:TEMP:TC:TYPE {tctype}')
         time.sleep(2)
 
-    def set_to_4wire_rtd(self, type='PT385'): # Set instrument to 4-Wire RTD
+    def set_to_4wire_rtd(self, rtdtype='PT385'): # Set instrument to 4-Wire RTD
         self.ins.write('SENS:FUNC "TEMP"')
         self.ins.write('SENS:TEMP:TRAN FRTD')
-        self.ins.write(f'SENS:TEMP:RTD:TYPE {type}')
+        self.ins.write(f'SENS:TEMP:RTD:TYPE {rtdtype}')
         time.sleep(2)
 
-    def set_to_2wire_rtd(self, type='PT385'): # Set instrument to 3-Wire RTD
+    def set_to_2wire_rtd(self, rtdtype='PT385'): # Set instrument to 3-Wire RTD
         self.ins.write('SENS:FUNC "TEMP"')
         self.ins.write('SENS:TEMP:TRAN RTD')
-        self.ins.write(f'SENS:TEMP:RTD:TYPE {type}')
+        self.ins.write(f'SENS:TEMP:RTD:TYPE {rtdtype}')
         time.sleep(2)
 
     def read(self): # Read instrument current value
@@ -483,23 +482,23 @@ class HP3458A(Init): # Reference Multimeter
     def nplc(self,nplc): # Set number of power line cycles per reading
         self.ins.write(f'NPLC {nplc}')    
 
-    def set_to_dcv(self, range='AUTO', nplc=100): # Set to DCV
-        self.ins.write(f'DCV,{range} ; NPLC {nplc}; TRIG AUTO')
+    def set_to_dcv(self, vrange='AUTO', nplc=100): # Set to DCV
+        self.ins.write(f'DCV,{vrange} ; NPLC {nplc}; TRIG AUTO')
 
-    def set_to_acv(self, range='AUTO', nplc=100): # Set to ACV
-        self.ins.write(f'ACV,{range} ; NPLC {nplc}; TRIG AUTO')
+    def set_to_acv(self, vrange='AUTO', nplc=100): # Set to ACV
+        self.ins.write(f'ACV,{vrange} ; NPLC {nplc}; TRIG AUTO')
 
-    def set_to_2wire_res(self, range='AUTO', nplc=100): # Set to 2-Wire Res
-        self.ins.write(f'OHM,{range} ; NPLC {nplc}; TRIG AUTO')
+    def set_to_2wire_res(self, resrange='AUTO', nplc=100): # Set to 2-Wire Res
+        self.ins.write(f'OHM,{resrange} ; NPLC {nplc}; TRIG AUTO')
 
-    def set_to_4wire_res(self, range='AUTO', nplc=100): # Set to 4-Wire Res
-        self.ins.write(f'OHMF,{range} ; NPLC {nplc}; TRIG AUTO')
+    def set_to_4wire_res(self, resrange='AUTO', nplc=100): # Set to 4-Wire Res
+        self.ins.write(f'OHMF,{resrange} ; NPLC {nplc}; TRIG AUTO')
 
-    def set_to_dci(self, range='AUTO', nplc=100): # Set to DCI
-        self.ins.write(f'DCI,{range} ; NPLC {nplc}; TRIG AUTO')
+    def set_to_dci(self, irange='AUTO', nplc=100): # Set to DCI
+        self.ins.write(f'DCI,{irange} ; NPLC {nplc}; TRIG AUTO')
 
-    def set_to_aci(self, range='AUTO', nplc=100): # Set to ACI
-        self.ins.write(f'ACI,{range} ; NPLC {nplc}; TRIG AUTO')
+    def set_to_aci(self, irange='AUTO', nplc=100): # Set to ACI
+        self.ins.write(f'ACI,{irange} ; NPLC {nplc}; TRIG AUTO')
 
     def set_trig_delay(self,delay):
         self.ins.write(f'DELAY {delay}')
@@ -567,9 +566,9 @@ class RSFSP(Init): # Spectrum Analyzer
         self.set_ref_level(ref_level)
         time.sleep(0.5)
 
-    def set_detector(self, type='SAMP'): # Set detector type
+    def set_detector(self, dettype='SAMP'): # Set detector type
         # Valid types are APE, POS, NEG, AVER, RMS, SAMP, QPE
-        self.ins.write(f'DET {type}')
+        self.ins.write(f'DET {dettype}')
 
     def set_ref_level(self,level): # Set amplitude reference level
         self.ins.write(f'DISP:WIND:TRAC:Y:RLEV {level}dBm; *WAI')
@@ -591,7 +590,7 @@ class RSFSP(Init): # Spectrum Analyzer
     def get_thd(self): # Set to measure harmonics and grab THD
         # DOes not work on FSP3
         self.ins.write('CALC:MARK:FUNC:HARM:STAT ON')
-        self.write('INIT:CONT ON; *WAI')
+        self.ins.write('INIT:CONT ON; *WAI')
         return self.ins.query('CALC:MARK:FUNC:HARM:DIST?')
 
     def manual_harmonics(self,fund_freq, fund_power, n_harmonics): # Get worst harmonic distortion measurement
@@ -620,8 +619,8 @@ class RSFSP(Init): # Spectrum Analyzer
 
 class HP53132A(Init): # Counter
 
-    def input_coupling(self,channel=1, type='AC'): # Set input coupling mode
-        self.ins.write(f'INP{channel}:COUP {type}')
+    def input_coupling(self,channel=1, ctype='AC'): # Set input coupling mode
+        self.ins.write(f'INP{channel}:COUP {ctype}')
 
     def input_impedance(self,channel=1,impedance=1e6): # Set input impedance
         self.ins.write(f'INP{channel}:IMP {impedance} OHM')
@@ -962,8 +961,8 @@ class HP3325B(Init): # Signal Generator
     def sweep_marker(self,frequency):   # Sweep Marker Frequency
         self.ins.write(f'MF{frequency}HZ')
 
-    def sweep_time(self, time): # Sweep Time
-        self.ins.write(f'TI{time:.3f}SE')
+    def sweep_time(self, swtime): # Sweep Time
+        self.ins.write(f'TI{swtime:.3f}SE')
 
     def silence(self): # Shhhhhh
         self.sine_output(0.001,10e3,0)
@@ -1024,4 +1023,4 @@ class HP3314A(Init): # Signal Generator
 
 if __name__ == '__main__':
 
-    swap('\nDocumentation coming soon! Refer to MetrologyAutomation github for details.')
+    swap('\nDocumentation coming soon!')
