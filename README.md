@@ -8,3 +8,4 @@ Instruments can be initialized in an application as instances of the appropriate
 
 Addition of instruments is as simple as defining an appropriate class in the core file, inheriting the Init class or related model class--or defining your \_\_init\_\_ constructor as necessary--and defining instrument functions as needed
 using 'self.ins' as the name of the general PyVISA resource instance (Ex: self.ins.write('{some command}').
+
