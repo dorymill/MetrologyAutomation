@@ -15,6 +15,7 @@ from scipy.interpolate import interp1d
 # Common Functions
 
 def initialize_ins(name='{instrument name}'): # Initialize an instrument
+    '''Instantiates the PyVISA resource manager, queries the controller, and returns all seen instruments, pending user input on which to initialize.'''
     clear()
     rmq = pv.ResourceManager()
     instruments = [dev for dev in rmq.list_resources()]
@@ -30,12 +31,15 @@ def initialize_ins(name='{instrument name}'): # Initialize an instrument
     return instruments[index1]
 
 def pause(): # Pause script
+    '''Pause the script.'''
     input('\nPress enter to continue. . .')
 
 def clear(): # Clear terminal
+    '''Clear terminal output based on operating system.'''
     os.system('cls' if os.name == 'nt' else 'clear')
 
 def swap(message): # Halt and message
+    '''Halt script and display a message. Usually used for cable and instrument swaps.'''
     clear()
     print(f'\n{message}')
     pause()
@@ -46,20 +50,28 @@ def swap(message): # Halt and message
 # Standards
 class Init(): # Initializer Parent Class
 
+    '''Parent class containg the basic initialization routine and common instrument commands.'''
+
     def __init__(self,resource_address): # Initialize instrument through PyVisa
+        '''Initializes an instrument. Timeout may need varied dependent upon the nature of the instrument.'''
         rm = pv.ResourceManager()
         self.ins = rm.open_resource(resource_address)
         self.ins.timeout = 60e3
 
     def command(self,string): # Send and arbitrary command
+        '''Sends a general command string to an instrument. Typically for seldom used commands that don't merit their own method.'''
         self.ins.write(string)
 
     def query(self,string): # Send an arbitrary query
+        '''Sends a general command and reads the instrument response. Typically use to collect data.'''
         return self.ins.query(string)
 
 class Fluke96270A(Init): # RF Reference Source
+  
+    '''Fluke 96720A Low Phase Noise Radio Frequency Reference Source'''
 
     def set_outp_mode(self,mode): # Select head or microwave output
+        '''Sets output mode to microwave or leveling head.'''
         clear()
         if mode.lower() == 'microwave':
             self.ins.write(':OUTP:ROUT MICR')
@@ -69,6 +81,7 @@ class Fluke96270A(Init): # RF Reference Source
             print('\nInvalid output mode passed. Please enter either "head" or "microwave".')
 
     def sine_output(self,carrier,power): # Sine wave output
+        '''Sets sine output to a given power and frequency and engages output.'''
         self.ins.write('OUTP OFF')
         self.ins.write('INST SINE')
         self.ins.write('UNIT:POW DBM')
@@ -77,7 +90,8 @@ class Fluke96270A(Init): # RF Reference Source
         time.sleep(1)
         self.ins.write('OUTP ON')
 
-    def amplitude_modulation(self,carrier,power,rate,depth): # AM Output      
+    def amplitude_modulation(self,carrier,power,rate,depth): # AM Output
+        '''Sets output to amplitude modulation at a given carrier, power, rate, and depth then engages the output.'''    
         self.ins.write('OUTP OFF')
         self.ins.write('INST AM')
         self.ins.write('UNIT:POW DBM')
@@ -89,7 +103,8 @@ class Fluke96270A(Init): # RF Reference Source
         time.sleep(1)
         self.ins.write(f'OUTP ON')
 
-    def frequency_modulation(self,carrier,power,rate,deviation): # FM Output      
+    def frequency_modulation(self,carrier,power,rate,deviation): # FM Output
+        '''Sets output to frequency modulation at a given carrier, power, rate, and deviation then engages output.'''
         self.ins.write('OUTP OFF')
         self.ins.write('INST FM')
         self.ins.write('UNIT:POW DBM')
@@ -102,6 +117,7 @@ class Fluke96270A(Init): # RF Reference Source
         self.ins.write(f'OUTP ON')
 
     def phase_modulation(self,carrier,power,rate,deviation): # PM Output
+        '''Sets output to phase modulation at a given carrier, power, rate, and deviation then engages output.'''
         self.ins.write('OUTP OFF')
         self.ins.write('INST PM')
         self.ins.write('UNIT:POW DBM')
@@ -114,17 +130,24 @@ class Fluke96270A(Init): # RF Reference Source
         self.ins.write('OUTP ON')
 
     def silence(self): # Shhhhhhhhhhh
+        '''Disengages output.'''
         self.ins.write('OUTP OFF')
 
 class Fluke9640A(Fluke96270A,Init): # RF Reference Source
-    
+  
+    '''Fluke 9640A Radio Frequency Reference Source'''    
+
     def set_outp_mode(self, *args, **kwargs): # Overwriting unused method
+        '''Method not applicable to this unit.'''
         # This unit only outputs via leveling head
         pass
 
 class HP33120A(Init): # Signal Generator
 
+    '''HP 33120A 15 MHz Signal Generator'''
+
     def __init__(self,resource_address): # Initialization constructor
+        '''Init method redefined to set unit to minimum output on successful connection.'''
         rm = pv.ResourceManager()
         self.ins = rm.open_resource(resource_address)
         self.ins.write('*RST')
@@ -132,30 +155,38 @@ class HP33120A(Init): # Signal Generator
         self.ins.write('APPL:SIN 1e3,-20')
 
     def output_unit(self,unit='DBM'): # Options are VPP,VRMS, and DBM
+        '''Sets the output unit.'''
         self.ins.write(f'VOLT:UNIT {unit}')
 
     def sine_output(self,level,freq): # Sine wave output
+        '''Sets the unit to sine wave output.'''
         self.ins.write(f'APPL:SIN {freq},{level}')
 
     def ramp_output(self,level,freq): # Triangle output
+        '''Sets the unit to ramp wave output.'''
         self.ins.write(f'APPL:RAMP {freq},{level}')
 
     def square_output(self,level,freq): # Square wave
+        '''Sets the unit to square wave output.'''
         self.ins.write(f'APPL:SQU {freq},{level}')
 
     def dc_output(self,voltage): # DC Output
+        '''Sets the unit to DC voltage output.'''
         self.ins.write(f'APPL:DC {voltage}')
 
     def dc_offset(self,offset_voltage): # DC Offset
+        '''Sets the signal DC offset voltage.'''
         self.ins.write(f'VOLT:OFFS {offset_voltage}')
 
 class Fluke55XXA(Init): # Multifunction Calibrator
 
     def wave_shape(self,shape='SINE'): # Change AC Waveform Shape
+        '''Sets the wave shape.'''
         # Options | SINE, TRI, SQUARE, TRUNCS
         self.ins.write(f'WAVE {shape}')
 
     def voltage_dc(self,voltage): # DCV Output
+        '''Sets the unit to output a specified DC voltage.'''
         self.ins.write('STBY')
         self.ins.write(f'OUT {voltage} V, 0 Hz')
         if voltage >= 33:
@@ -166,6 +197,7 @@ class Fluke55XXA(Init): # Multifunction Calibrator
         self.ins.write('OPER')
 
     def voltage_ac(self,voltage,frequency): # ACV Output
+        '''Sets the unit to output a specified AC voltage.'''
         self.ins.write('STBY')
         self.ins.write(f'OUT {voltage} V, {frequency} Hz')
         if voltage >= 33:
@@ -176,40 +208,47 @@ class Fluke55XXA(Init): # Multifunction Calibrator
         self.ins.write('OPER')
 
     def current_dc(self, current): # DCI Output
+        '''Sets the unit to output a specified DC current.'''
         self.ins.write('STBY')
         self.ins.write(f'OUT {current} A, 0 Hz')
         self.ins.write('OPER')
 
     def current_ac(self,current,frequency): # ACI Output
+        '''Sets the unit to output a specified AC current.'''
         self.ins.write('STBY')
         self.ins.write(f'OUT {current} A, {frequency} Hz')
         self.ins.write('LCOMP ON')
         self.ins.write('OPER')
 
     def resistance_nocomp(self,resistance): # Resistance Output
+        '''Sets the unit to output a specified resistance with no compensation.'''
         self.ins.write('STBY')
         self.ins.write(f'OUT {resistance} OHM')
         self.ins.write('ZCOMP NONE')
         self.ins.write('OPER')
 
     def resistance_2wire(self,resistance): # 2-Wire Resistance Output
+        '''Sets the unit to output a specified resistance with 2-wire compensation.'''
         self.ins.write('STBY')
         self.ins.write(f'OUT {resistance} OHM')
         self.ins.write('ZCOMP WIRE2')
         self.ins.write('OPER')
 
     def resistance_4wire(self,resistance): # 4-Wire Resistance Output
+        '''Sets the unit to output a specified resistance with 4-wire compensation.'''
         self.ins.write('STBY')
         self.ins.write(f'OUT {resistance} OHM')
         self.ins.write('ZCOMP WIRE4')
         self.ins.write('OPER')
 
     def capacitance(self,cap): # Capacitance Output
+        '''Sets the unit to output a specified capacitance.'''
         self.ins.write('STBY')
         self.ins.write(f'OUT {cap} F')
         self.ins.write('OPER')
 
     def thermocouple_temp(self,temp,unit='C',tctype='K'): # T/C Output
+        '''Sets the unit to output a specified temperature via specified T/C type.'''
         self.ins.write('STBY')
         self.ins.write(f'TC_TYPE {tctype}')
 
@@ -222,6 +261,7 @@ class Fluke55XXA(Init): # Multifunction Calibrator
         self.ins.write('OPER')
 
     def rtd_2wire_simulation(self,temp,unit='C',tctype='PT385'): # 2-Wire RTD Output
+        '''Sets the unit to output a specified temperature via specified 2-wire RTD type.'''
         self.ins.write('STBY')
 
         if unit=='F':
@@ -234,6 +274,7 @@ class Fluke55XXA(Init): # Multifunction Calibrator
         self.ins.write('OPER')
 
     def rtd_4wire_simulation(self,temp,unit='C',tctype='PT385'): # 4-Wire RTD Output
+        '''Sets the unit to output a specified temperature via specified 4-wire RTD type.'''
         self.ins.write('STBY')
 
         if unit=='F':
@@ -246,19 +287,24 @@ class Fluke55XXA(Init): # Multifunction Calibrator
         self.ins.write('OPER')
 
     def silence(self): # Shhhhhhhhhhhh
-            self.ins.write('STBY')
-            time.sleep(0.5)
+        '''Disengages unit output.'''
+        self.ins.write('STBY')
 
 class HP4418B(Init): # RF Power Meter
 
+    '''HP 4418B EPM Series Power Meter'''
+
     def clear_errors(self): # Clear error register
+        '''Clears the unit error register.'''
         self.ins.write('*CLS')
 
     def set_unit(self, unit='DBM'): # Set output unit
+        '''Sets the unit of measure.'''
         # Options | W or DBM
         self.ins.write(f'UNIT1:POW {unit}')
 
     def zero_sensor(self): # Zero power sensor
+        '''Zeroes the power sensor.'''
         clear()
         input('\nEnsure power sensor is disconnected.\nPress enter to continue. . .')
         clear()
@@ -270,6 +316,7 @@ class HP4418B(Init): # RF Power Meter
         clear()
     
     def cal_sensor(self): # Calibrate Power Sensor
+        '''Calibrates the power sensor.'''
         clear()
         input('\nConnect power sensor to calibration output.\nPress enter to continue. . .')
         clear()
@@ -281,16 +328,18 @@ class HP4418B(Init): # RF Power Meter
         clear()
 
     def measure_power(self, freq, model='HP8482A'): # Measure power w/internal corrections
+        '''Measures power with default corrections for the specified sensor model. Only use with new power sensors.'''
         self.ins.write('ABORt1')
         self.ins.write('CONFigure1:POWer:AC DEF,4,(@1)')
         self.ins.write(f'SENS1:CORR:CSET1:SEL "{model}"')
         self.ins.write('SENS1:CORR:CSET1:STAT ON')
-        self.ins.write('SENSe1:FREQuency {:.6f}'.format(freq))
+        self.ins.write(f'SENSe1:FREQuency {freq:.6f}')
         self.ins.write('INIT1')
         time.sleep(5)     
         return float(self.ins.query('FETC1?'))
 
     def measure_power_w_corrections(self,correction): # Measure power with given corrections
+        '''Measures power with user provided corrections. See load_corrections method.'''
         self.ins.write('ABORt1')
         self.ins.write('CONFigure1:POWer:AC DEF,4,(@1)')
         self.ins.write(f'CAL1:RCF {correction:.2f}PCT')
@@ -666,7 +715,7 @@ class HP53132A(Init): # Counter
         self.ins.write('INIT:CONT ON')
 
     def rise_mode(self): # Rise Time Measurement
-        self.ins.write(f'SENS:FUNC:ON ":RISE:TIME 1"')
+        self.ins.write('SENS:FUNC:ON ":RISE:TIME 1"')
         self.ins.write('INIT:CONT ON')
 
     def fall_mode(self): # Fall Time Measurement
@@ -899,7 +948,7 @@ class AgilentN5181A(Init): # Signal generator
         self.ins.write('OUTP:STAT 0')
         self.ins.write(f'FREQ {frequency}')
         self.ins.write(f'POW:AMPL {power} dBm')
-        self.ins.write(f'OUTP:STAT 1')
+        self.ins.write('OUTP:STAT 1')
         time.sleep(3)
              
     def silence(self): # Turn off RF output
