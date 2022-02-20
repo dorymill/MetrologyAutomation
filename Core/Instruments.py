@@ -180,6 +180,8 @@ class HP33120A(Init): # Signal Generator
 
 class Fluke55XXA(Init): # Multifunction Calibrator
 
+    '''Fluke 55XXA Multifunction Calibrator. Refer to manual for approriate ranges.'''
+
     def wave_shape(self,shape='SINE'): # Change AC Waveform Shape
         '''Sets the wave shape.'''
         # Options | SINE, TRI, SQUARE, TRUNCS
@@ -348,6 +350,7 @@ class HP4418B(Init): # RF Power Meter
         return float(self.ins.query('FETC?'))
 
     def load_corrections(self,inlist): # Load correction factors
+        '''Loads user defined correction factors and returns an object that takes in a frequency and outputs a correction factor. Does not extrapolate.'''
         df = pd.read_csv(inlist)
         corr_freqs = [float(a)*1e6 for a in df['Frequency']]
         corr_factors = [float(a) for a in df['Factor']]   
@@ -355,10 +358,14 @@ class HP4418B(Init): # RF Power Meter
 
 class Keithley2015(Init): # Digital Multimeter
 
+    '''Keithley 2015 Digital Multimeter'''
+
     def stealth(self, status='OFF'): # Disable the display
+        '''Disable the display.'''
         self.ins.write(f'DISP:ENAB {status}')
 
-    def set_to_dcv(self, speed='AUTO', vrange='AUTO'): # Set instrument to DCV      
+    def set_to_dcv(self, speed='AUTO', vrange='AUTO'): # Set instrument to DCV     
+        '''Set the unit to measure DC Voltage.''' 
         self.ins.write('SENS:FUNC "VOLT:DC"')
         #self.ins.write('INIT:CONT ON')
 
@@ -374,9 +381,9 @@ class Keithley2015(Init): # Digital Multimeter
         else:
             self.ins.write('SENS:VOLT:DC:NPLC 0.1')
 
-        time.sleep(2)
 
-    def set_to_acv(self, vrange='AUTO'): # Set instrument to ACV       
+    def set_to_acv(self, vrange='AUTO'): # Set instrument to ACV    
+        '''Set the unit to measure AC Voltage.'''   
         self.ins.write('SENS:FUNC "VOLT:AC"')
         self.ins.write('UNIT:VOLT:AC V')
 
@@ -385,14 +392,15 @@ class Keithley2015(Init): # Digital Multimeter
         else:
             self.ins.write(f'SENS:VOLT:AC:RANG {vrange}')
 
-        time.sleep(2)
 
     def set_to_dbm(self, impedance=50): # Set to dBm mode
+        '''Set the unit to measure AC Voltage in dBm mode.'''
         self.set_to_acv()
         self.ins.write(f'UNIT:VOLT:AC:DBM:IMP {impedance}')
         self.ins.write('UNIT:VOLT:AC DBM')
 
     def set_to_THD(self, frequency, unit='dB'): # Set to Total Harmonic Distortion mode
+        '''Set the unit to measure total harmonic distortion in given units.'''
         if unit == '%':
             self.ins.write('SENS:FUNC "DIST"')
             self.ins.write(f'SENS:DIST:FREQ {frequency}')
@@ -403,27 +411,31 @@ class Keithley2015(Init): # Digital Multimeter
             self.ins.write(f'SENS:DIST:FREQ {frequency}')
 
     def thd_freq(self,frequency): # Set THD frequency
+        '''Tunes the carrier frequency for distortion measurements.'''
         self.ins.write(f'SENS:DIST:FREQ {frequency}')
 
     def set_to_2wire_res(self, resrange='AUTO', speed='MED'): # Set instrument to 2 Wire Resistance
+        '''Set the unit to measure 2-wire resistance.'''
         self.ins.write('SENS:FUNC "RES"')
 
         if resrange == 'AUTO':
             self.ins.write('SENS:RES:RANG:AUTO 1')
         else:
             self.ins.write(f'SENS:RES:RANG {resrange}')
-        time.sleep(2)
+
 
     def set_to_4wire_res(self, resrange='AUTO', speed='MED'): # Set instrument to 4 Wire Resistance
+        '''Set the unit to measure 4-wire resistance.'''
         self.ins.write('SENS:FUNC "FRES"')
 
         if resrange == 'AUTO':
             self.ins.write('SENS:FRES:RANG:AUTO 1')
         else:
             self.ins.write(f'SENS:FRES:RANG {resrange}')
-        time.sleep(2)
+
 
     def set_to_aci(self, irange='AUTO', speed='MED'): # Set instrument to ACI
+        '''Set the unit to measure AC Current.'''
         self.ins.write('SENS:FUNC "CURR:AC"')
         #self.ins.write('INIT:CONT ON')
 
@@ -432,10 +444,8 @@ class Keithley2015(Init): # Digital Multimeter
         else:
             self.ins.write(f'SENS:CURR:AC:RANG {irange}')
 
-        # Figure out how to change the rate on ACImode
-        time.sleep(2)
-
     def set_to_dci(self, irange='AUTO', speed='MED'): # Set instrument to DCI
+        '''Set the unit to measure DC Current.'''
         self.ins.write('SENS:FUNC "CURR:DC"')
 
         if irange == 'AUTO':
@@ -445,25 +455,31 @@ class Keithley2015(Init): # Digital Multimeter
         time.sleep(2)
 
     def set_to_freq(self): # Set instrument to Frequency
+        '''Set the unit to measure Frequency.'''
         self.ins.write('SENS:FUNC "FREQ"')
         time.sleep(2)
 
     def set_to_thermocouple(self,tctype='J'): # Set instrument to Thermocouple
+        '''Set the unit to measure T/C temperature.'''
         self.ins.write('SENS:FUNC "TEMP"')
         self.ins.write(f'SENS:TEMP:TC:TYPE {tctype}')
         time.sleep(2)
 
     def set_ac_averaging(self, naverages=10): # Set number of readings for the moving average filter
+        '''Set the number of points to take for the moving average filter.'''
         self.ins.write(f'SENS:VOLT:AVER:COUN {naverages}')
 
     def set_delay(self,delay_time): # Set Trigger delay
+        '''Set the trigger delay.'''
         self.ins.write(f'TRIG:DEL {delay_time}')
 
     def read(self): # Read instrument current value
+        '''Return the current reading.'''
         self.ins.write('INIT:CONT ON')
         return float(self.ins.query('FETC?'))
 
     def slow_read(self): # Read instrument current value
+        '''Deprecated method. Use read().'''
         self.ins.write('INIT:CONT ON')
         time.sleep(20)
         reading = self.ins.query('FETC?')
@@ -472,7 +488,8 @@ class Keithley2015(Init): # Digital Multimeter
 
 class Keithley2001(Keithley2015,Init): # Digital Multimeter
 
-    def set_to_acv(self, vrange='AUTO',speed='MED', detector='RMS'): # Set instrument to ACV       
+    def set_to_acv(self, vrange='AUTO',speed='MED', detector='RMS'): # Set instrument to ACV      
+        '''Set the unit to measure AC Voltage.''' 
         self.ins.write('SENS:FUNC "VOLT:AC"')
         # Avaliable modes | RMS, AVERage, LFRMs, NPeak, PPeak
         self.ins.write(f'SENS:VOLT:AC:DET:FUNC {detector}')
@@ -482,34 +499,35 @@ class Keithley2001(Keithley2015,Init): # Digital Multimeter
         else:
             self.ins.write(f'SENS:VOLT:AC:RANG {vrange}')
 
-        # Figure out how to change the rate on ACV mode
-        time.sleep(2)
 
     def set_to_thermocouple(self,tctype='J'): # Set instrument to Thermocouple
+        '''Set the unit to measure T/C temperature.'''
         self.ins.write('SENS:FUNC "TEMP"')
         self.ins.write('SENS:TEMP:TRAN TC')
         self.ins.write(f'SENS:TEMP:TC:TYPE {tctype}')
-        time.sleep(2)
 
     def set_to_4wire_rtd(self, rtdtype='PT385'): # Set instrument to 4-Wire RTD
+        '''Set the unit to measure 4-Wire RTD Temperature.'''
         self.ins.write('SENS:FUNC "TEMP"')
         self.ins.write('SENS:TEMP:TRAN FRTD')
         self.ins.write(f'SENS:TEMP:RTD:TYPE {rtdtype}')
-        time.sleep(2)
 
     def set_to_2wire_rtd(self, rtdtype='PT385'): # Set instrument to 3-Wire RTD
+        '''Set the unit to measure 2-Wire RTD temperature.'''
         self.ins.write('SENS:FUNC "TEMP"')
         self.ins.write('SENS:TEMP:TRAN RTD')
         self.ins.write(f'SENS:TEMP:RTD:TYPE {rtdtype}')
         time.sleep(2)
 
     def read(self): # Read instrument current value
+        '''Take the current measurement.'''
         self.ins.write('INIT:CONT ON')
         result_string = self.ins.query('FETC?')
         msmnt = re.search('\S+[Ee][+-]?\d\d', result_string).group(0) # Regex search to grab +/-XXx.XXXX+/-EXX
         return float(msmnt)
 
     def slow_read(self): # Read slower filter results
+        '''Deprecated. Use read().'''
         self.ins.write('INIT:CONT ON')
         time.sleep(20)
         result_string = self.ins.query('FETC?')
@@ -517,6 +535,8 @@ class Keithley2001(Keithley2015,Init): # Digital Multimeter
         return float(msmnt)
 
 class HP3458A(Init): # Reference Multimeter
+
+    '''HP 3458 Reference Multimeter.'''
 
     def __init__(self,resource_address): # Allow GPIB reading in ASCII format
         rm = pv.ResourceManager()
@@ -526,39 +546,51 @@ class HP3458A(Init): # Reference Multimeter
         self.ins.timeout = 60e3
 
     def auto_cal(self): # Auto Calibration
+        '''Auto cal the unit.'''
         self.ins.write('ACAL')
 
     def nplc(self,nplc): # Set number of power line cycles per reading
+        '''Set the number of power line cycles per reading.'''
         self.ins.write(f'NPLC {nplc}')    
 
     def set_to_dcv(self, vrange='AUTO', nplc=100): # Set to DCV
+        '''Set the unit to read DC Voltage.'''
         self.ins.write(f'DCV,{vrange} ; NPLC {nplc}; TRIG AUTO')
 
     def set_to_acv(self, vrange='AUTO', nplc=100): # Set to ACV
+        '''Set the unit to read AC Voltage.'''
         self.ins.write(f'ACV,{vrange} ; NPLC {nplc}; TRIG AUTO')
 
     def set_to_2wire_res(self, resrange='AUTO', nplc=100): # Set to 2-Wire Res
+        '''Set the unit to read 2-Wire Resistance.'''
         self.ins.write(f'OHM,{resrange} ; NPLC {nplc}; TRIG AUTO')
 
     def set_to_4wire_res(self, resrange='AUTO', nplc=100): # Set to 4-Wire Res
+        '''Set the unit to read 4-Wire Resistance.'''
         self.ins.write(f'OHMF,{resrange} ; NPLC {nplc}; TRIG AUTO')
 
     def set_to_dci(self, irange='AUTO', nplc=100): # Set to DCI
+        '''Set the unit to read DC Current.'''
         self.ins.write(f'DCI,{irange} ; NPLC {nplc}; TRIG AUTO')
 
     def set_to_aci(self, irange='AUTO', nplc=100): # Set to ACI
+        '''Set the unit to read AC Current.'''
         self.ins.write(f'ACI,{irange} ; NPLC {nplc}; TRIG AUTO')
 
     def set_trig_delay(self,delay):
+        '''Set the unit trigger delay.'''
         self.ins.write(f'DELAY {delay}')
 
     def msg(self,string): # Send a message to the display
+        '''Display a message on the unit display.'''
         self.ins.write(f'DISP MSG "{string}"')
 
     def get_display(self): # Get current display
+        '''Get the current characters on the unit display.'''
         return self.ins.query('DSP?')
 
     def read(self): # Read Current Value
+        '''Return the current measurement.'''
         return float(self.ins.query('SPOLL?'))               
 
 class RSFSP(Init): # Spectrum Analyzer
