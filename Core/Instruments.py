@@ -595,6 +595,8 @@ class HP3458A(Init): # Reference Multimeter
 
 class RSFSP(Init): # Spectrum Analyzer
 
+    '''Rohde & Schwarz FSP Series Spectrum Analyzer'''
+
     def __init__(self,resource_address): # Initialize instrument through PyVisa
         rm = pv.ResourceManager()
         self.ins = rm.open_resource(resource_address)
@@ -603,30 +605,38 @@ class RSFSP(Init): # Spectrum Analyzer
         self.ins.write('SYST:DISP:UPD ON') # Allows the display to update
 
     def clear_write_mode(self): # Set trace mode to clear/write
+        '''Sets trace to clear/write mode.'''
         self.ins.write('DISP:WIND:TRAC:MODE WRIT')
 
     def input_attenuation(self,dB='AUTO'): # Set the input attentuation
+        '''Sets the input attenuation.'''
         if dB == 'Auto':
             self.ins.write('INP:ATT:AUTO ON')
         else:
             self.ins.write(f'INP:ATT {dB}dB')
 
     def set_averaging(self,n): # Set trace mode to average
+        '''Set trace averaging.'''
         self.ins.write(f'AVER:COUNT {n}; DISP:WIND:TRAC:MODE AVER; AVER:STAT ON; INIT; *WAI')
 
     def single_sweep(self): # Single sweep mode
+        '''Set unit to single sweep mode.'''
         self.ins.write('INIT:CONT OFF')
 
     def center(self,frequency): # Set center frequency
+        '''Set the unit center frequency.'''
         self.ins.write(f'FREQ:CENT {frequency}; *WAI')
 
     def start(self,frequency): # Set start frequency
+        '''Set the unit start frequency.'''
         self.ins.write(f'FREQ:START {frequency}')
 
     def stop(self,frequency): # Set stop frequency
+        '''Set the unit stop frequency.'''
         self.ins.write(f'FREQ:STOP {frequency}')
 
     def span(self,span): # Set span
+        '''Set the unit frequency span.'''
         if span == 'Full':
             self.ins.write('FREQ:SPAN:FULL')
         elif span == 'Zero':
@@ -635,12 +645,15 @@ class RSFSP(Init): # Spectrum Analyzer
             self.ins.write(f'FREQ:SPAN {span}')
 
     def rbw(self,bandwidth): # Set Resolution Bandwidth (decouples from VBW)
+        '''Set the unit resolution bandwidth.'''
         self.ins.write(f'BAND {bandwidth}; *WAI')
 
     def vbw(self, bandwidth): # Set Video Bandwidth (decouples from RBW)
+        '''Set the unit video bandwidth.'''
         self.ins.write(f'BAND:VID {bandwidth}; *WAI')
 
     def window(self,span, center, rbw, ref_level): # Set general measurement parameters
+        '''Set the display window to given spectral parameters.'''
         self.span(span)
         self.center(center)
         self.rbw(rbw)
@@ -648,33 +661,41 @@ class RSFSP(Init): # Spectrum Analyzer
         time.sleep(0.5)
 
     def set_detector(self, dettype='SAMP'): # Set detector type
+        '''Set unit detector type. (Valid types are APE, POS, NEG, AVER, RMS, SAMP, QPE)'''
         # Valid types are APE, POS, NEG, AVER, RMS, SAMP, QPE
         self.ins.write(f'DET {dettype}')
 
     def set_ref_level(self,level): # Set amplitude reference level
+        '''Set the unit reference level.'''
         self.ins.write(f'DISP:WIND:TRAC:Y:RLEV {level}dBm; *WAI')
 
     def set_marker_freq(self,frequency): # Set marker frequency
+        '''Set the unit marker frequency.'''
         self.ins.write(f'CALC:MARK ON; CALC:MARK:X {frequency}')
 
     def get_marker_power(self): # Grab Current marker reading
+        '''Get the level reading of the current marker.'''
         return float(self.ins.query('CALC:MARK:Y?'))
 
     def ref_to_marker(self): # Set reference level to marker level
+        '''Set the unit reference level to the current marker value.'''
         self.ins.write('CALC:MARK:FUNC:REF')
 
     def get_peak_power(self): # Set marker to peak and grab reading
+        '''Get the peak power in the window.'''
         time.sleep(0.5)
         self.ins.write('CALC:MARK:MAX')
         return float(self.ins.query('CALC:MARK:Y?'))
 
     def get_thd(self): # Set to measure harmonics and grab THD
+        '''Get THD of a given measurement. Requires proper firmware package for Harmonic Dist measurement.'''
         # DOes not work on FSP3
         self.ins.write('CALC:MARK:FUNC:HARM:STAT ON')
         self.ins.write('INIT:CONT ON; *WAI')
         return self.ins.query('CALC:MARK:FUNC:HARM:DIST?')
 
     def manual_harmonics(self,fund_freq, fund_power, n_harmonics): # Get worst harmonic distortion measurement
+        '''Measure harmonics manually, returning the worst of n harmonic measurements.'''
         harmonics = []
 
         self.window(10e3,fund_freq,100, fund_power+1)
@@ -696,6 +717,7 @@ class RSFSP(Init): # Spectrum Analyzer
         return -min(harmonics)
 
     def next_peak(self): # Move the marker to the next highest peak
+        '''Move the marker to the next peak.'''
         self.ins.write('CALC:MARK:MAX:NEXT')
 
 class HP53132A(Init): # Counter
