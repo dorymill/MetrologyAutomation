@@ -684,11 +684,11 @@ class RSFSP(Init): # Spectrum Analyzer
 
         for i in range(0,n_harmonics):
             if fund_freq <= 100:
-                self.window(50,(i+2)*fund_freq,10,fund_power-20)
+                self.window(50,(i+2)*fund_freq,10,fund_power+1)
             elif fund_freq < 5000:
-                self.window(1000,(i+2)*fund_freq,100,fund_power-20 )
+                self.window(1000,(i+2)*fund_freq,100,fund_power+1)
             else:
-                self.window(10e3,(i+2)*fund_freq,100,fund_power-20)
+                self.window(10e3,(i+2)*fund_freq,100,fund_power+1)
 
             time.sleep(float(self.ins.query('SWE:TIME?'))+0.5)
             harmonics.append(carrier_power - float(self.get_peak_power()))
