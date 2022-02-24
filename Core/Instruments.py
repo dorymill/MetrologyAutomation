@@ -1248,17 +1248,20 @@ class HP3314A(Init): # Signal Generator
 
 class HP34970A(Init): # Data Acquisition Unit
 
+    '''HP 34970A Data Acquisition Unit'''
+
     dcv_range = [300,100,10,1,0.1]
     acv_range = [300,100,10,1,0.1]
     resistance_range = [100e6,10e6,1e6,100e3,10e3,1e3,100]
     dci_range = [1,0.1,0.01]
     aci_range = [1,0.1,0.01]
 
-    def set_measurement(self,channel,nominal,measurement_type='DCV'):
+    def set_measurement(self,channel,nominal,measurement_type='DCV'): # Sets the measurement function and triggers the DUT.
         '''Sets the unit to measure a specified quantity on a given channel.
         
             Available measurement functions are "DCV, ACV, ACI, DCI, RES, TEMP, and FREQ"
         '''
+        
         if measurement_type == 'DCV':
             msmnt_range = range_check(nominal, HP34970A.dcv_range)
             self.ins.write('ROUT:MON:STAT 0')
@@ -1313,7 +1316,8 @@ class HP34970A(Init): # Data Acquisition Unit
             swap('Invalid measurement type selected.')
             exit()
 
-    def read(self):
+    def read(self): # Grab the current reading
+        '''Returns the current reading.'''
         return float(self.ins.query('READ?'))
         
 if __name__ == '__main__':
