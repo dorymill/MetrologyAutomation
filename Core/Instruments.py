@@ -45,6 +45,20 @@ def swap(message): # Halt and message
     pause()
     clear()
 
+def range_check(value,ins_range):
+
+    '''Range/Safety Checking algorithm. \nTakes in a value and range, and outputs the range value.'''
+
+    ins_range.sort(reverse=True)
+
+    if value > ins_range[0]:
+        swap('\nOver-range detected! Check inlist against instrument range attributes.')
+        exit()
+
+    for i in range(len(ins_range)):
+        if value > ins_range[i]:
+            return ins_range[i-1]
+
 # Instrument Classes
 
 # Standards
@@ -1232,6 +1246,82 @@ class HP3314A(Init): # Signal Generator
         self.ins.write('FU 3')
         self.ins.write(f'FR{frequency:.1f}HZOF{offset}VOAP{level}{unit}')
 
+class HP34970A(Init): # Data Acquisition Unit
+
+    dcv_range = [300,100,10,1,0.1]
+    acv_range = [300,100,10,1,0.1]
+    resistance_range = [100e6,10e6,1e6,100e3,10e3,1e3,100]
+    dci_range = [1,0.1,0.01]
+    aci_range = [1,0.1,0.01]
+
+    def set_measurement(self,channel,nominal,measurement_type='DCV'):
+        '''Sets the unit to measure a specified quantity on a given channel.
+        
+            Available measurement functions are "DCV, ACV, ACI, DCI, RES, TEMP, and FREQ"
+        '''
+        if measurement_type == 'DCV':
+            msmnt_range = range_check(nominal, HP34970A.dcv_range)
+            self.ins.write('ROUT:MON:STAT 0')
+            self.ins.write(f'CONF:VOLT:DC {msmnt_range},(@{channel})')
+            self.ins.write(f'ROUT:MON:CHAN (@{channel})')
+            self.ins.write('ROUT:MON:STAT 1')
+
+        elif measurement_type == 'ACV':
+            msmnt_range = range_check(nominal, HP34970A.acv_range)
+            self.ins.write('ROUT:MON:STAT 0')
+            self.ins.write(f'CONF:VOLT:AC {msmnt_range},(@{channel})')
+            self.ins.write('SENS:VOLT:AC:BAND 3')
+            self.ins.write(f'ROUT:MON:CHAN (@{channel})')
+            self.ins.write('ROUT:MON:STAT 1')           
+
+        elif measurement_type == 'ACI':
+            msmnt_range = range_check(nominal, HP34970A.aci_range)
+            self.ins.write('ROUT:MON:STAT 0')
+            self.ins.write(f'CONF:CURR:AC {msmnt_range},(@{channel})')
+            self.ins.write('SENS:CURR:AC:BAND 3')
+            self.ins.write(f'ROUT:MON:CHAN (@{channel})')
+            self.ins.write('ROUT:MON:STAT 1')
+
+        elif measurement_type == 'DCI':
+            msmnt_range = range_check(nominal, HP34970A.dci_range)
+            self.ins.write('ROUT:MON:STAT 0')
+            self.ins.write(f'CONF:CURR:DC {msmnt_range},(@{channel})')
+            self.ins.write(f'ROUT:MON:CHAN (@{channel})')
+            self.ins.write('ROUT:MON:STAT 1')
+
+        elif measurement_type == 'RES':
+            msmnt_range = range_check(nominal, HP34970A.resistance_range)
+            self.ins.write('ROUT:MON:STAT 0')
+            self.ins.write(f'CONF:FRES {msmnt_range},(@{channel})')
+            self.ins.write(f'ROUT:MON:CHAN (@{channel})')
+            self.ins.write('ROUT:MON:STAT 1')
+
+        elif measurement_type == 'FREQ':
+            self.ins.write('ROUT:MON:STAT 0')
+            self.ins.write(f'CONF:FREQ (@{channel})')
+            self.ins.write(f'SENS:FREQ:APER 1,(@{channel})')
+            self.ins.write(f'ROUT:MON:CHAN (@{channel})')
+            self.ins.write('ROUT:MON:STAT 1')
+
+        elif measurement_type == 'TEMP':
+            self.ins.write('ROUT:MON:STAT 0')
+            self.ins.write(f'CONF:TEMP TC,K,(@{channel})')
+            self.ins.write(f'ROUT:MON:CHAN (@{channel})')
+            self.ins.write('ROUT:MON:STAT 1')
+        
+        else:
+            swap('Invalid measurement type selected.')
+            exit()
+
+    def read(self):
+        return float(self.ins.query('READ?'))
+        
+
 if __name__ == '__main__':
 
     swap('\nDocumentation coming soon!')
+
+    #dcv_range = [1000,100,10,1,0.1,0.01,0.001]
+    #val = 100
+
+    #print(range_check(val, dcv_range))
