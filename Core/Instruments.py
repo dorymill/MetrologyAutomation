@@ -1316,12 +1316,6 @@ class HP34970A(Init): # Data Acquisition Unit
     def read(self):
         return float(self.ins.query('READ?'))
         
-
 if __name__ == '__main__':
 
     swap('\nDocumentation coming soon!')
-
-    #dcv_range = [1000,100,10,1,0.1,0.01,0.001]
-    #val = 100
-
-    #print(range_check(val, dcv_range))
