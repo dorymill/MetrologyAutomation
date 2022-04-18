@@ -11,6 +11,8 @@ import time, re, os
 import pyvisa as pv
 import pandas as pd
 from scipy.interpolate import interp1d
+from datetime import datetime
+import matplotlib.pyplot as plt
 
 # Common Functions
 
@@ -45,23 +47,10 @@ def swap(message): # Halt and message
     pause()
     clear()
 
-def range_check(value,ins_range):
-
-    '''Range/Safety Checking algorithm. \nTakes in a value and range, and outputs the range value.'''
-
-    ins_range.sort(reverse=True)
-
-    if value > ins_range[0]:
-        swap('\nOver-range detected! Check inlist against instrument range attributes.')
-        exit()
-
-    for i in range(len(ins_range)):
-        if value > ins_range[i]:
-            return ins_range[i-1]
-
 # Instrument Classes
 
 # Standards
+
 class Init(): # Initializer Parent Class
 
     '''Parent class containg the basic initialization routine and common instrument commands.'''
@@ -395,7 +384,6 @@ class Keithley2015(Init): # Digital Multimeter
         else:
             self.ins.write('SENS:VOLT:DC:NPLC 0.1')
 
-
     def set_to_acv(self, vrange='AUTO'): # Set instrument to ACV    
         '''Set the unit to measure AC Voltage.'''   
         self.ins.write('SENS:FUNC "VOLT:AC"')
@@ -405,7 +393,6 @@ class Keithley2015(Init): # Digital Multimeter
             self.ins.write('SENS:VOLT:AC:RANG:AUTO 1')
         else:
             self.ins.write(f'SENS:VOLT:AC:RANG {vrange}')
-
 
     def set_to_dbm(self, impedance=50): # Set to dBm mode
         '''Set the unit to measure AC Voltage in dBm mode.'''
@@ -437,7 +424,6 @@ class Keithley2015(Init): # Digital Multimeter
         else:
             self.ins.write(f'SENS:RES:RANG {resrange}')
 
-
     def set_to_4wire_res(self, resrange='AUTO', speed='MED'): # Set instrument to 4 Wire Resistance
         '''Set the unit to measure 4-wire resistance.'''
         self.ins.write('SENS:FUNC "FRES"')
@@ -446,7 +432,6 @@ class Keithley2015(Init): # Digital Multimeter
             self.ins.write('SENS:FRES:RANG:AUTO 1')
         else:
             self.ins.write(f'SENS:FRES:RANG {resrange}')
-
 
     def set_to_aci(self, irange='AUTO', speed='MED'): # Set instrument to ACI
         '''Set the unit to measure AC Current.'''
@@ -512,7 +497,6 @@ class Keithley2001(Keithley2015,Init): # Digital Multimeter
             self.ins.write('SENS:VOLT:AC:RANG:AUTO 1')
         else:
             self.ins.write(f'SENS:VOLT:AC:RANG {vrange}')
-
 
     def set_to_thermocouple(self,tctype='J'): # Set instrument to Thermocouple
         '''Set the unit to measure T/C temperature.'''
@@ -736,18 +720,13 @@ class RSFSP(Init): # Spectrum Analyzer
 
 class HP53132A(Init): # Counter
 
-    '''HP 53132A Frequency Counter.'''
-
     def input_coupling(self,channel=1, ctype='AC'): # Set input coupling mode
-        '''Set the unit input coupling type.'''
         self.ins.write(f'INP{channel}:COUP {ctype}')
 
     def input_impedance(self,channel=1,impedance=1e6): # Set input impedance
-        '''Set the unit input impedance.'''
         self.ins.write(f'INP{channel}:IMP {impedance} OHM')
 
     def averaging(self, n=100, state=True): # Set averaging mode and count
-        '''Set the unit to averaging mode and set number of samples.'''
         if state:
             self.ins.write('INIT:CONT OFF')
             self.ins.write(f'CALC3:AVER:COUN {n}')
@@ -760,7 +739,6 @@ class HP53132A(Init): # Counter
             self.ins.write('CALC3:AVER:STAT OFF')
 
     def std_deviation(self, n=100, state=True): # Set standard deviation mode and count
-        '''Set the unit to standard deviation mode, and set number of samples.'''
         if state:
             self.ins.write('INIT:CONT OFF')
             self.ins.write(f'CALC3:AVER:COUN {n}')
@@ -773,191 +751,147 @@ class HP53132A(Init): # Counter
             self.ins.write('CALC3:AVER:STAT OFF')
 
     def low_pass_filter(self,channel=1,status=True): # 100 kHz low-pass filter
-        '''Engage the 100 kHz Low-pass filter.'''
+
         if status:
             self.ins.write(f'INP{channel}:FILT ON')
         else:
             self.ins.write(f'INP{channel}:FILT OFF')
 
     def rel_trigger_level(self,channel=1,percent=50): # Trigger Percent adjustment
-        '''Set the unit relative trigger level.'''
         self.ins.write(f'SENS:EVEN{channel}:LEV:REL {percent}')
 
     def frequency_mode(self, channel=1, gate=1): # Frequency Measurement
-        '''Set the unit to measure frequency on a given channel with a given gate time.'''
         self.ins.write(f'SENS:FUNC:ON "FREQ {channel}"')
         self.ins.write('SENS:FREQ:ARM:SOUR IMM')
         self.ins.write(f'SENS:FREQ:ARM:STOP:TIM {gate}')
         self.ins.write('INIT:CONT ON')
 
     def rise_mode(self): # Rise Time Measurement
-        '''Set the unit to measure rise time. (Channel 1 only.)'''
         self.ins.write('SENS:FUNC:ON ":RISE:TIME 1"')
         self.ins.write('INIT:CONT ON')
 
     def fall_mode(self): # Fall Time Measurement
-        '''Set the unit to measure fall time. (Channel 1 only.)'''
         self.ins.write('SENS:FUNC:ON ":FALL:TIME 1"')
         self.ins.write('INIT:CONT ON')
 
     def period_mode(self,channel=1, gate=1): # Period Measurement
-        '''Set the unit to measure period on a given channel with a given gate time.'''
         self.ins.write(f'SENS:FUNC "PERIOD {channel}"')
         self.ins.write('SENS:FREQ:ARM:SOUR IMM')
         self.ins.write(f'SENS:FREQ:ARM:STOP:TIM {gate}')
         self.ins.write('INIT:CONT ON')
 
     def time_of_flight(self): # Time of Flight Measurement
-        '''Set the unit to measure time between channel 1 and 2 signals.'''
         self.ins.write('SENS:FUNC "TINT 1,2"')
         self.ins.write('INIT:CONT ON')
 
     def read(self): # Read instrument result
-        '''Return the current measurement.'''
         return float(self.ins.query('FETC?'))
 
 class HP8901B(Init): # Modulation Analyzer
 
-    '''HP 8901B Modulation Analyzer 100 kHz to 1.3 GHz.'''
-
     def am(self): # Amplitude Modulation
-        '''Set unit to measure amplitude modulation.'''
         self.ins.write('M1')
     
     def fm(self): # Frequency Modulation
-        '''Set unit to measure frequency modulation.'''
         self.ins.write('M2')
 
     def phim(self): # Phase Modulation
-        '''Set the unit to measure phase modulation.'''
         self.ins.write('M3')
 
     def rf(self): # RF Power
-        '''Set the unit to measure RF power.'''
         self.ins.write('M4')
 
     def freq(self): # Frequency
-        '''Set the unit to measure frequency.'''
         self.ins.write('M5')
 
     def audio_freq(self): # Audio Frequency
-        '''Set the unit to measure frequency on the audio input.'''
         self.ins.write('S1')
 
     def audio_dist(self): # Audio Distortion
-        '''Set the unit to measur distortion on the audio input.'''
         self.ins.write('S2')
 
     def peak_plus(self): # Peak+ Detector
-        '''Set the detector to +Peak mode.'''
         self.ins.write('D1')
 
     def peak_minus(self): # Peak- Detector
-        '''Set the detector to -Peak mode.'''
         self.ins.write('D2')
 
     def peak_hold(self): # Peak Hold Detector
-        '''Set the detector to Peak hold mode.'''
         self.ins.write('D3')
 
     def average(self): # Average Detector
-        '''Set the detector to average mode.'''
         self.ins.write('D4')
 
     def distn1khz(self): # 1 kHz Distortion Detection
-        '''Set the unit to measure 1 kHz distortion.'''
         self.ins.write('D5')
 
     def dist400hz(self): # 400 Hz Distortion Detection
-        '''Set the unit to measure 400 Hz distortion.'''
         self.ins.write('D6')
 
     def rms(self): # RMS Detector
-        '''Set the detector to RMS mode.'''
         self.ins.write('D8')
 
     def peak_half(self): # ±Peak/2 Detector
-        '''Set the detector to ±Peak/2 mode.'''
         self.ins.write('D9')
 
     def log(self): # Log Display
-        '''Set the measurement units to logarithmic.'''
         self.ins.write('LG')
 
     def linear(self): # Linear Display
-        '''Set the measurement units to linear.'''
         self.ins.write('LN')
 
     def ratio(self, state='ON'): # Ratio Settings
-        '''Set the unit to ratio mode.'''
         if state == 'ON':
             self.ins.write('R1')
         else:
             self.ins.write('R0')
 
     def highpass_off(self): # Disable all highpass filters
-        '''Disable all high-pass filters.'''
         self.ins.write('H0')
 
     def hp50Hz(self): # 50 Hz Highpass Filters
-        '''Engage the 50 Hz high-pass filter.'''
         self.ins.write('H1')
 
     def hp300Hz(self): # 300 Hz Highpass Filter
-        '''Engage the 300 Hz high-pass filter.'''
         self.ins.write('H2')
 
     def lowpass_off(self): # Disable all lowpass filters
-        '''Disable all low-pass filters.'''
         self.ins.write('L0')
 
     def lp3kHz(self): # 3 kHz Lowpass Filter
-        '''Engage 3 kHz low-pass fiter.'''
         self.ins.write('L1')
 
     def lp15kHz(self): # 15 kHz Lowpass Filter
-        '''Engage 15 kHz low-pass filter.'''
         self.ins.write('L2')
 
     def lp20kHz(self): # >20 kHz Lowpass FIlter
-        '''Engage > 20 kHz low-pass filter.'''
         self.ins.write('L3')
 
     def auto(self): # Auto Operation
-        '''Set unit to auto operation.'''
         self.ins.write('AU')
     
     def inpfreq(self): # Input Frequency (MHz)
-        '''Tune unit oscillator frequency to input frequency.'''
         self.ins.write('MZ')
 
     def am_cal(self): # AM Calibration Signal
-        '''Set the unit to AM and engage the AM cal signal.'''
-        self.ins.write('M1C1')
+        self.ins.write('13.0SP')
 
     def fm_cal(self): # FM Calibration Signal
-        '''Set the unit to FM and engage the FM cal signal.'''
-        self.ins.write('M2C1')
+        self.ins.write('12.0SP')
 
     def reset(self): # Reset Analyzer
-        '''Clear the data lines.'''
         self.ins.write('DCL')
 
     def read(self): # Take a measurement
-        '''Read from the instrument.'''
-        return float(self.ins.read())
+        return float(self.ins.query('GET'))
 
 class TSG4104A(Init): # Signal Generator
 
-    '''Tektronix TSG4104A DC to 4 GHz Signal Generator.'''
-
     def silence(self): # Reset the instrument
-        '''Disable all outputs.'''
         self.ins.write('ENBL 0')
         self.ins.write('ENBR 0')
         
     def rf(self, amp, frequency, unit='dBM'): # RF Output Units = {RMS, dBM}
-        '''Set unit to output RF at a given level and frequency.'''
         if frequency >= 62.5e6:
             self.ins.write('ENBL 0')
             self.ins.write(f'AMPR {amp} {unit}')
@@ -971,7 +905,6 @@ class TSG4104A(Init): # Signal Generator
             self.ins.write('ENBL 1')
 
     def lf(self, amp, frequency, unit='dBm'): # LF Output
-        '''Set unit to output LF at a given level and frequency.'''
         if frequency <= 62.5e6: 
             self.ins.write('ENBL 0')
             self.ins.write(f'FREQ {frequency}')
@@ -986,340 +919,221 @@ class TSG4104A(Init): # Signal Generator
 
 class HP8903B(Init): # Audio Analyzer
 
-    '''HP 8903B Audio Analyzer.'''
-
     def rms_detector(self): # RMS Detector
-        '''Set the detector to RMS mode.'''
         self.ins.write('A0')
 
     def avg_detector(self): # Average Detector
-        '''Set the detector to average mode.'''
         self.ins.write('A1')
 
     def auto_op(self): # Auto Operation
-        '''Set the unit to auto operation mode.'''
         self.ins.write('AU')
 
     def log_units(self): # Logarithmic units
-        '''Set the measurement display to logarithmic units.'''
         self.ins.write('LG')
 
     def linear_units(self): # Linear units
-        '''Set the measurement display to linear units.'''
         self.ins.write('LN')
 
     def lowpass_off(self): # Low-pass filters off
-        '''Disengage all low-pass filters.'''
         self.ins.write('L0')
 
     def lp30kHz(self): # 30 kHz low-pass filter
-        '''Engage the 30 kHz low-pass filter.'''
         self.ins.write('L1')
     
     def lp80kHz(self): # 80 kHz low-pass filter
-        '''Engage the 80 kHz low-pass filter.'''
         self.ins.write('L2')
 
     def highpass_off(self): # High-pass filters off
-        '''Disengage all high-pass filters.'''
         self.ins.write('H0')
 
     def hp400Hz(self): # 400 Hz high-pass filter
-        '''Engage the 400 Hz high-pass filter.'''
         self.ins.write('H1')
 
     def righthp(self): # Right high-pass filter
-        '''Engage the right high-pass filter.'''
         self.ins.write('H2')
 
     def ac_level(self): # AC Level Measurement
-        '''Set the unit to measure AC voltage level.'''
         self.ins.write('M1')
 
     def dc_level(self): # DC Level Measurement
-        '''Set the unit to measure DC voltage level.'''
         self.ins.write('S1')
 
     def sinad(self): # SINAD Distortion measurment
-        '''Set the unit to measure SINAD (distortion).'''
         self.ins.write('M2')
 
     def distortion(self): # Harmonic Distortion Measurement
-        '''Set the unit to measure THD.'''
         self.ins.write('M3')
 
     def snr(self): # Signal-Noise Ratio Measurement
-        '''Set the unit to measure signal to noise ratio.'''
         self.ins.write('S2')
 
     def ratio(self, state=True): # Ratio mode
-        '''Set the measurement state to ratio mode.'''
         if state:
             self.ins.write('R1')
         else:
             self.ins.write('R0')
 
     def special(self,number): # Special functions
-        '''Enters a given special function code. Ex: 12.0SP'''
         self.ins.write(f'{number}SP')
 
     def outp(self,amplitude, frequency, unit='VL'): # Output
-        '''Engage the unit audio output.'''
         self.ins.write(f'AP{amplitude}{unit}FR{frequency}HZ')
 
     def read_right(self): # Read right display
-        '''Read measurement from right display.'''
         return float(self.ins.query('RR'))
 
     def read_left(self): # Read left display
-        '''Read measurement from left display.'''
         return float(self.ins.query('RL'))
 
     def reset(self): # Reset instrument to default settings
-        '''Reset the instrument to default state.'''
         self.ins.write('41.0SP')
 
     
 # DUT's
-class AgilentN5181A(Init): # Signal generator
 
-    '''Agilent N5181A 100 kHz to 6 GHz Signal Generator.'''
+class AgilentN5181A(Init): # Signal generator
 
     def __init__(self,resource_address):
         rm = pv.ResourceManager()
         self.ins = rm.open_resource(resource_address)
 
     def rf_output(self,power,frequency): # RF Output
-        '''Engage the unit RF output at a given level and frequency.'''
         self.ins.write('OUTP:STAT 0')
         self.ins.write(f'FREQ {frequency}')
         self.ins.write(f'POW:AMPL {power} dBm')
         self.ins.write('OUTP:STAT 1')
+        time.sleep(3)
              
     def silence(self): # Turn off RF output
-        '''Disable RF output.'''
         self.ins.write('OUTP:STAT 0')
 
 class HP3325B(Init): # Signal Generator
 
-    '''HP 3325B DC to 20 MHz Signal Generator.'''
-
     def command(self,command):
-        '''Sends an arbitrary command to the unit.'''
         self.ins.write(command)
 
     def sine_output(self, level, frequency, offset, unit='VO'): # VO is pp. VR is rms
-        '''Sets the unit to output a sine wave at a given level and frequency.'''
         if self.ins.query('FU?') != 'FU1':
             self.ins.write('FU 1')
         self.ins.write('OF0.0VO')
         self.ins.write(f'FR{frequency:.1f}HZ AM{level}{unit} OF{offset}VO')
 
     def square_output(self, level, frequency, offset, unit='VO'): # Square Wave output
-        '''Sets the unit to output a square wave at a given level and frequency.'''
         if self.ins.query('FU?') != 'FU2':
             self.ins.write('FU 2')
         self.ins.write('OF0.0VO')
         self.ins.write(f'FR{frequency:.1f}HZ AM{level}{unit} OF{offset}VO')
 
     def triangle_output(self, level, frequency, offset, unit='VO'): # Triangle Wave output
-        '''Sets the unit to output a triangle wave at a given level and frequency.'''
         if self.ins.query('FU?') != 'FU3':
             self.ins.write('FU 3')
         self.ins.write('OF0.0VO')
         self.ins.write(f'FR{frequency:.1f}HZ AM{level}{unit} OF{offset}VO')
 
     def pos_ramp_output(self, level, frequency, offset, unit='VO'): # Positive Ramp Wave output
-        '''Sets the unit to output a positive ramp wave at a given level and frequency.'''
         if self.ins.query('FU?') != 'FU4':
             self.ins.write('FU 4')
         self.ins.write('OF0.0VO')
         self.ins.write(f'FR{frequency:.1f}HZ AM{level}{unit} OF{offset}VO')
 
     def neg_ramp_output(self, level, frequency, offset, unit='VO'): # Negative Ramp Wave output
-        '''Sets the unit to output a negative ramp wave at a given level and frequency.'''
         if self.ins.query('FU?') != 'FU5':
             self.ins.write('FU 5')
         self.ins.write('OF0.0VO')
         self.ins.write(f'FR{frequency:.1f}HZ AM{level}{unit}  OF{offset}VO')
 
     def dc_offset_only(self,offset): # DC Offset output
-        '''Sets the unit to output a given DC offset.'''
         if self.ins.query('FU?') != 'FU0':
             self.ins.write('FU 0')
         self.ins.write(f'OF{offset}VO')
 
     def phase_mode(self, phase): # Phase Output
-        '''Set the unit to phase shift the output.'''
         self.ins.write('MP1')
         self.ins.write(f'PH{phase}DE')
 
     def cont_sweep(self): # Continuous Sweep mode
-        '''Set the unit to continuous sweep mode.'''
         self.ins.write('SC')
 
     def sweep_start_freq(self,frequency): # Sweep Start Frequency
-        '''Set the sweep start frequency.'''
         self.ins.write(f'ST{frequency:.1f}HZ')
 
     def sweep_stop_freq(self,frequency): # Sweep Stop Frequency
-        '''Set the sweep stop frequency.'''
         self.ins.write(f'SP{frequency:.1f}HZ')
 
     def sweep_marker(self,frequency):   # Sweep Marker Frequency
-        '''Set the sweep marker frequency.'''
         self.ins.write(f'MF{frequency}HZ')
 
     def sweep_time(self, swtime): # Sweep Time
-        '''Set the sweep time.'''
         self.ins.write(f'TI{swtime:.3f}SE')
 
     def silence(self): # Shhhhhh
-        '''Set the unit to minimal output.'''
         self.sine_output(0.001,10e3,0)
 
 class HP3325A(HP3325B): # Signal Generator
 
-    '''HP 3325A 20 MHz Signal Generator.'''
-
     def sine_output(self, level, frequency, offset, unit='VO'): # VO is pp. VR is rms
-        '''Sets the unit to output a sine wave at a given level and frequency.'''
         if self.ins.query('FU?') != 'FU1':
             self.ins.write('FU1AC')
         self.ins.write('OF0.0VO')
         self.ins.write(f'FR{frequency:.1f}HZAM{level}{unit}OF{offset}VO')
 
     def square_output(self, level, frequency, offset, unit='VO'): # Square Wave output
-        '''Sets the unit to output a square wave at a given level and frequency.'''
         if self.ins.query('FU?') != 'FU2':
             self.ins.write('FU2AC')
         self.ins.write('OF0.0VO')
         self.ins.write(f'FR{frequency:.1f}HZAM{level}{unit}OF{offset}VO')
 
     def triangle_output(self, level, frequency, offset, unit='VO'): # Triangle Wave output
-        '''Sets the unit to output a triangle wave at a given level and frequency.'''
         if self.ins.query('FU?') != 'FU3':
             self.ins.write('FU3AC')
         self.ins.write('OF0.0VO')
         self.ins.write(f'FR{frequency:.1f}HZAM{level}{unit}OF{offset}VO')
 
     def pos_ramp_output(self, level, frequency, offset, unit='VO'): # Positive Ramp Wave output
-        '''Sets the unit to output a positive ramp wave at a given level and frequency.'''
         if self.ins.query('FU?') != 'FU4':
             self.ins.write('FU4AC')
         self.ins.write('OF0.0VO')
         self.ins.write(f'FR{frequency:.1f}HZAM{level}{unit}OF{offset}VO')
 
     def neg_ramp_output(self, level, frequency, offset, unit='VO'): # Negative Ramp Wave output
-        '''Sets the unit to output a negative ramp wave at a given level and frequency.'''
         if self.ins.query('FU?') != 'FU5':
             self.ins.write('FU5AC')
         self.ins.write('OF0.0VO')
         self.ins.write(f'FR{frequency:.1f}HZAM{level}{unit}OF{offset}VO')
 
     def dc_offset_only(self,offset): # DC Offset 
-        '''Sets the unit to output a DC Level.'''
         if self.ins.query('FU?') != 'FU0':
             self.ins.write('FU0AC')
         self.ins.write(f'OF{offset}VO')
 
     def silence(self): # Shhhhhhhhhh
-        '''Sets the unit to minimum output.'''
         self.sine_output(0.001,10e3,0)
 
 class HP3314A(Init): # Signal Generator
 
-    '''HP 3314 Signal Generator.'''
-
     def sine_output(self, level, frequency, offset, unit='VO'): # VO is VPP
-        '''Sets the unit to output a sine wave at a given level and frequency.'''
         self.ins.write('FU 1')
         self.ins.write(f'FR{frequency:.1f}HZOF{offset}VOAP{level}{unit}')
 
     def square_output(self, level, frequency, offset, unit='VO'): # VO is VPP
-        '''Sets the unit to output a square wave at a given level and frequency.'''
         self.ins.write('FU 2')
         self.ins.write(f'FR{frequency:.1f}HZOF{offset}VOAP{level}{unit}')
 
     def triangle_output(self, level, frequency, offset, unit='VO'): # VO is VPP
-        '''Sets the unit to output a triangle wave at a given level and frequency.'''
         self.ins.write('FU 3')
         self.ins.write(f'FR{frequency:.1f}HZOF{offset}VOAP{level}{unit}')
 
-class HP34970A(Init): # Data Acquisition Unit
+class SMC100A(Init):
 
-    '''HP 34970A Data Acquisition Unit'''
+    def rf_out(self, power, frequency):
+        self.ins.write('OUTP OFF')
+        self.ins.write(f'SOUR:POW {power}')
+        self.ins.write(f'SOUR:FREQ {frequency}')
+        self.ins.write('OUTP ON')
 
-    dcv_range = [300,100,10,1,0.1]
-    acv_range = [300,100,10,1,0.1]
-    resistance_range = [100e6,10e6,1e6,100e3,10e3,1e3,100]
-    dci_range = [1,0.1,0.01]
-    aci_range = [1,0.1,0.01]
+    def silence(self):
+        self.ins.write('OUTP OFF')
 
-    def set_measurement(self,channel,nominal,measurement_type='DCV'): # Sets the measurement function and triggers the DUT.
-        '''Sets the unit to measure a specified quantity on a given channel.
-        
-            Available measurement functions are "DCV, ACV, ACI, DCI, RES, TEMP, and FREQ"
-        '''
-        
-        if measurement_type == 'DCV':
-            msmnt_range = range_check(nominal, HP34970A.dcv_range)
-            self.ins.write('ROUT:MON:STAT 0')
-            self.ins.write(f'CONF:VOLT:DC {msmnt_range},(@{channel})')
-            self.ins.write(f'ROUT:MON:CHAN (@{channel})')
-            self.ins.write('ROUT:MON:STAT 1')
 
-        elif measurement_type == 'ACV':
-            msmnt_range = range_check(nominal, HP34970A.acv_range)
-            self.ins.write('ROUT:MON:STAT 0')
-            self.ins.write(f'CONF:VOLT:AC {msmnt_range},(@{channel})')
-            self.ins.write('SENS:VOLT:AC:BAND 3')
-            self.ins.write(f'ROUT:MON:CHAN (@{channel})')
-            self.ins.write('ROUT:MON:STAT 1')           
-
-        elif measurement_type == 'ACI':
-            msmnt_range = range_check(nominal, HP34970A.aci_range)
-            self.ins.write('ROUT:MON:STAT 0')
-            self.ins.write(f'CONF:CURR:AC {msmnt_range},(@{channel})')
-            self.ins.write('SENS:CURR:AC:BAND 3')
-            self.ins.write(f'ROUT:MON:CHAN (@{channel})')
-            self.ins.write('ROUT:MON:STAT 1')
-
-        elif measurement_type == 'DCI':
-            msmnt_range = range_check(nominal, HP34970A.dci_range)
-            self.ins.write('ROUT:MON:STAT 0')
-            self.ins.write(f'CONF:CURR:DC {msmnt_range},(@{channel})')
-            self.ins.write(f'ROUT:MON:CHAN (@{channel})')
-            self.ins.write('ROUT:MON:STAT 1')
-
-        elif measurement_type == 'RES':
-            msmnt_range = range_check(nominal, HP34970A.resistance_range)
-            self.ins.write('ROUT:MON:STAT 0')
-            self.ins.write(f'CONF:FRES {msmnt_range},(@{channel})')
-            self.ins.write(f'ROUT:MON:CHAN (@{channel})')
-            self.ins.write('ROUT:MON:STAT 1')
-
-        elif measurement_type == 'FREQ':
-            self.ins.write('ROUT:MON:STAT 0')
-            self.ins.write(f'CONF:FREQ (@{channel})')
-            self.ins.write(f'SENS:FREQ:APER 1,(@{channel})')
-            self.ins.write(f'ROUT:MON:CHAN (@{channel})')
-            self.ins.write('ROUT:MON:STAT 1')
-
-        elif measurement_type == 'TEMP':
-            self.ins.write('ROUT:MON:STAT 0')
-            self.ins.write(f'CONF:TEMP TC,K,(@{channel})')
-            self.ins.write(f'ROUT:MON:CHAN (@{channel})')
-            self.ins.write('ROUT:MON:STAT 1')
-        
-        else:
-            swap('Invalid measurement type selected.')
-            exit()
-
-    def read(self): # Grab the current reading
-        '''Returns the current reading.'''
-        return float(self.ins.query('READ?'))
-        
 if __name__ == '__main__':
-
-    swap('\nDocumentation coming soon!')
+    pass
