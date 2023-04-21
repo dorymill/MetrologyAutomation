@@ -1,6 +1,6 @@
 # MetrologyAutomation
 
-Python OOP Framework containg the core set of SCIPI commands required to develop calibration applications 
+Python OOP Framework containing the core set of SCIPI and HPIB commands required to develop calibration applications 
 
 --------------------------------------------------------------------------------------------------
 
